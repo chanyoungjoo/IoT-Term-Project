@@ -33,6 +33,8 @@ export function Switch({ value, onValueChange, label, disabled }) {
     <RNSwitch
       value={value} onValueChange={onValueChange} disabled={disabled} accessibilityLabel={label}
       trackColor={{ true: C.primary, false: '#d5dbe8' }} thumbColor="#fff" ios_backgroundColor="#d5dbe8"
+      // 웹 빌드(react-native-web)는 켜짐 색을 따로 받는다
+      activeThumbColor="#fff" activeTrackColor={C.primary}
     />
   );
 }

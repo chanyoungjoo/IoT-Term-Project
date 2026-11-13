@@ -301,6 +301,16 @@ npx expo login     # 🔐 처음 한 번 (Expo 무료 계정)
 npx expo start     # QR 코드를 Expo Go로 스캔
 ```
 
+### 🌐 사용자 앱 웹 빌드 (휴대폰 브라우저로 보기)
+
+```bash
+cd app
+npm run build:web  # → app/dist/ (주소 /app/ 기준)
+```
+
+같은 앱 코드를 `react-native-web`으로 웹사이트로 만들어요. 결과물을 라즈베리파이 웹 서버의 `/app/`에 올리면
+팀원이 설치 없이 휴대폰 브라우저에서 `http://<주소>/app/`으로 볼 수 있어요.
+
 > [!IMPORTANT]
 > 실제 iPhone의 **Expo Go**로 열려면 컴퓨터의 Expo CLI와 iPhone의 Expo Go가
 > **같은 Expo 계정**으로 로그인돼 있어야 해요. Mac에 Xcode가 있다면 `npx expo start --ios`로

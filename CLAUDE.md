@@ -111,6 +111,7 @@ airclass/
 
 - 웹: `cd web && npm install && npm run dev`
 - 앱: `cd app && npm install && npx expo start`
+- 앱 웹 빌드: `cd app && npm run build:web` → `app/dist/` (기준 경로 `/app`, `app.json`의 `experiments.baseUrl`). 라즈베리파이 nginx의 `/app/`에 올리고 `try_files $uri /app/index.html;`로 새로고침을 처리한다.
 
 ## 검증 (프로젝트 하네스)
 

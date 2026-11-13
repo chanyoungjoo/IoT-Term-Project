@@ -32,6 +32,9 @@
         }
       ]
     ],
-    "scheme": "airclass"
+    "scheme": "airclass",
+    "experiments": {
+      "baseUrl": "/app"
+    }
   }
 }
