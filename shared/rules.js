@@ -55,6 +55,7 @@ export function outdoorStatus(outdoorPm25) {
 
 // ─────────────────────────────────────────────
 // 3. 자동 제어 규칙 (규칙 1·2·3·5, 규칙 4는 이번 범위 제외)
+// 창문은 자동으로 움직이지 않는다. 열기·닫기 추천은 recommendWindow()가 따로 계산한다.
 // input:
 //   sensor: { pm25, co2 }
 //   outdoor: 'good' | 'bad' | 'unknown'
@@ -82,13 +83,13 @@ export function decide({ sensor, outdoor, purifierMode = 'auto' }) {
   } else if (co2High && !outBad) {
     result = {
       rule: 2, purifier: 'off', notify: 'ventilate',
-      title: '지금 창문을 열어 환기해 주세요',
+      title: '환기가 필요해요',
       message: 'CO₂가 1,000ppm 이상이고 실외 공기는 양호해요.',
     };
   } else if (co2High && outBad) {
     result = {
       rule: 3, purifier: 'on', notify: 'keepClosed',
-      title: '환기는 잠시 미루고 공기청정기를 가동했어요',
+      title: '창문을 닫고\n실내 공기를 정화할게요',
       message: outdoor === 'unknown'
         ? 'CO₂가 높지만 실외 상태를 확인할 수 없어 창문을 닫아 두는 쪽을 권장해요.'
         : 'CO₂가 1,000ppm 이상이지만 실외 공기가 나빠요.',
@@ -104,6 +105,36 @@ export function decide({ sensor, outdoor, purifierMode = 'auto' }) {
   // 수동 모드 장치는 자동 규칙이 공기청정기를 건드리지 않는다
   if (purifierMode === 'manual') result = { ...result, purifier: 'keep' };
   return result;
+}
+
+// ─────────────────────────────────────────────
+// 3-1. 창문 추천 (반자동: 시스템은 추천만, 실행은 사람이 앱·웹에서 버튼을 눌러서)
+// - 실외가 나쁘거나 알 수 없는데 창문이 열려 있음 → 닫기 추천
+// - CO₂ 높음 + 실외 양호 + 실내 PM2.5 정상 + 창문 닫힘 → 열기 추천
+// - 그 밖에는 추천 없음 (사람이 원하면 직접 여닫을 수 있음)
+// input: sensor { pm25, co2 }, outdoor 'good'|'bad'|'unknown', windowOpen boolean
+// return: null | { action: 'open'|'close', title, reason }
+// ─────────────────────────────────────────────
+export function recommendWindow({ sensor, outdoor, windowOpen }) {
+  const co2High = sensor.co2 >= THRESHOLDS.co2High;
+  const pmBad = sensor.pm25 >= THRESHOLDS.indoorPm25Bad;
+  if (windowOpen && outdoor !== 'good') {
+    return {
+      action: 'close',
+      title: '창문 닫기를 권장해요',
+      reason: outdoor === 'unknown'
+        ? '바깥 공기 상태를 확인할 수 없어요.\n닫아 두는 쪽이 안전해요.'
+        : '바깥 미세먼지가 나빠요.\n닫으면 공기청정기가 실내를 정화해요.',
+    };
+  }
+  if (!windowOpen && co2High && outdoor === 'good' && !pmBad) {
+    return {
+      action: 'open',
+      title: '창문 열기를 권장해요',
+      reason: `CO₂가 ${sensor.co2.toLocaleString('ko-KR')}ppm으로 높고 바깥 공기는 괜찮아요.\n10분 정도 환기하면 기준 아래로 내려가요.`,
+    };
+  }
+  return null;
 }
 
 // ─────────────────────────────────────────────

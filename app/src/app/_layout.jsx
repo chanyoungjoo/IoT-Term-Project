@@ -34,13 +34,17 @@ export default function RootLayout() {
   const [roomId, setRoomId] = useState(currentTeacher.defaultRoomId);
   const [demo, setDemo] = useState('normal');
   const [edits, setEdits] = useState({}); // 교실별 공기청정기 설정 { [roomId]: { power, mode, speed } }
+  const [windowEdits, setWindowEdits] = useState({}); // 앱에서 여닫은 창문 상태 { [roomId]: true|false }
+  // 시연 상태를 바꾸면 그 상태의 창문 시작값부터 다시 보여 준다
+  const changeDemo = (k) => { setDemo(k); setWindowEdits({}); };
+  const setWindowOpen = (id, open) => setWindowEdits((w) => ({ ...w, [id]: open }));
   const [splashDone, setSplashDone] = useState(false);
 
   if (!loaded) return null;
 
   return (
     <SafeAreaProvider>
-      <AppState.Provider value={{ roomId, setRoomId, demo, setDemo, edits, setEdits }}>
+      <AppState.Provider value={{ roomId, setRoomId, demo, setDemo: changeDemo, edits, setEdits, windowEdits, setWindowOpen }}>
         <StatusBar style="auto" />
         <Tabs screenOptions={{ headerShown: false, animation: 'shift' }} tabBar={(props) => <FloatingTabBar {...props} />}>
           {Object.keys(TABS).map((name) => <Tabs.Screen key={name} name={name} />)}

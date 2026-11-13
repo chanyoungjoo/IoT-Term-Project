@@ -312,3 +312,19 @@ th[aria-sort='ascending'] .th-sort, th[aria-sort='descending'] .th-sort { color:
   .scenario { margin-top: 12px; flex-direction: row; flex-wrap: wrap; }
   .main { padding: 20px 16px 40px; }
 }
+
+/* 창문 (반자동 제어) */
+.win-cell { display: flex; flex-direction: column; gap: 4px; }
+.win-row { display: inline-flex; align-items: center; gap: 8px; }
+.win-pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.win-pill.open { background: var(--ok-bg); color: var(--ok-text); }
+.win-pill.closed { background: var(--bg); color: var(--text-sub); }
+.win-pill.na { background: #eef0f4; color: #8a93a8; }
+.btn-sm { padding: 5px 12px; font-size: 13px; border-radius: 8px; }
+.btn-sm.rec { background: var(--primary-deep); border-color: var(--primary-deep); color: #fff; }
+.btn-sm.rec:hover { background: var(--primary); }
+.win-rec { font-size: 12px; font-weight: 700; color: var(--primary-deep); white-space: nowrap; }
+.win-rec.close { color: var(--warn-text); }
+.stat.tone-ok .stat-value { color: var(--ok-text); }
+.table-devices { min-width: 1000px; }
+.table-devices td:first-child, .table-devices td:nth-child(3) { white-space: nowrap; }

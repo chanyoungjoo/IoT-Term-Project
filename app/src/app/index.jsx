@@ -1,6 +1,6 @@
 import { Animated, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronDown, Cloud, Sparkles, Thermometer, Droplet, Lightbulb } from 'lucide-react-native';
+import { ChevronDown, Cloud, Sparkles, Thermometer, Droplet } from 'lucide-react-native';
 import { THRESHOLDS } from '../../../shared/rules';
 import { currentTeacher, getRoomView, school } from '../api';
 import { useAppState } from '../store';
@@ -8,23 +8,16 @@ import { C, HERO, LEVEL } from '../theme';
 import { T, Card, Header, MetricCard, Segmented } from '../ui';
 import { FadeIn, PressScale, useAnimatedColor, useAnimatedTo } from '../motion';
 import WindowArt from '../WindowArt';
+import WindowCard from '../WindowCard';
 
 const fmt = (n) => n.toLocaleString('ko-KR');
 const inRange = (v, [lo, hi]) => v >= lo && v <= hi;
 const floorText = (room) => (room.floor === 's' ? '특별실' : `${school.building} ${room.floor}층`);
 
-// 규칙별로 사람이 지금 할 일
-const TODO = {
-  1: ['창문을 닫아 주세요', '공기청정기가 PM2.5가 35 아래로 내려갈 때까지 돌아가요'],
-  2: ['창문을 10분 정도 열어 환기해 주세요', 'CO₂가 기준 아래로 내려가면 다시 알려 드릴게요'],
-  3: ['창문을 닫아 두세요', '바깥이 나아지면 환기 알림을 보내 드릴게요'],
-  5: ['지금은 따로 할 일이 없어요', '수치가 기준을 넘으면 바로 알려 드릴게요'],
-};
-
 export default function Home() {
   const insets = useSafeAreaInsets();
-  const { roomId, setRoomId, demo, setDemo } = useAppState();
-  const v = getRoomView(roomId, demo);
+  const { roomId, setRoomId, demo, setDemo, windowEdits, setWindowOpen } = useAppState();
+  const v = getRoomView(roomId, demo, windowEdits[roomId]);
   const { sensor, decision, outPm, outState } = v;
   const hero = HERO[decision.rule];
   const co2Lv = sensor.co2 >= THRESHOLDS.co2High ? 'warn' : 'ok';
@@ -81,6 +74,14 @@ export default function Home() {
       </Animated.View>
 
       <View style={s.body}>
+        {/* 창문 카드: 추천 + 원탭 실행 (지금 할 일 카드를 대신함) */}
+        <FadeIn delay={100}>
+          <WindowCard
+            open={v.window.open} online={v.window.online} rec={v.windowRec}
+            onSet={(open) => setWindowOpen(roomId, open)}
+            note={windowEdits[roomId] !== undefined ? `방금 창문을 ${windowEdits[roomId] ? '열었어요' : '닫았어요'}` : null}
+          />
+        </FadeIn>
         <FadeIn delay={120}>
           <View style={s.row}>
             <MetricCard icon={Cloud} label="CO₂" value={fmt(sensor.co2)} unit="ppm" level={co2Lv}
@@ -100,19 +101,6 @@ export default function Home() {
               level={humOk ? 'ok' : 'warn'} levelText={humOk ? '양호' : '확인'} ratio={sensor.humidity / 100}
               caption={`적정 ${THRESHOLDS.comfortHumidity.join('~')}%`} />
           </View>
-        </FadeIn>
-        <FadeIn delay={260}>
-          <Card>
-            <View style={s.todoHead}>
-              <Lightbulb size={20} color={C.primary} />
-              <T w={700} size={17}>지금 할 일</T>
-            </View>
-            {TODO[decision.rule].map((t, i) => (
-              <FadeIn key={t} delay={i * 60} from={6}><T size={15} color={i === 0 ? C.text : C.textSub} w={i === 0 ? 600 : 400} style={{ marginTop: 8 }}>
-                {i === 0 ? '• ' : '  '}{t}
-              </T></FadeIn>
-            ))}
-          </Card>
         </FadeIn>
         <FadeIn delay={330}>
           <Card>
@@ -162,7 +150,6 @@ const s = StyleSheet.create({
   // 히어로 위로 올라오는 시트: 위쪽 모서리만 둥글게, 카드는 이 시트 안에 놓인다
   body: { paddingHorizontal: 16, paddingTop: 20, marginTop: -28, gap: 12, backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
   row: { flexDirection: 'row', gap: 12 },
-  todoHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cmpRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
   cmpTrack: { flex: 1, height: 10, borderRadius: 5, backgroundColor: '#eef1f7', overflow: 'hidden' },
   cmpFill: { height: '100%', borderRadius: 5 },

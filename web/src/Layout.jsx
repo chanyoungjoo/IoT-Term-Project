@@ -24,6 +24,9 @@ export default function Layout() {
 
   const ctx = {
     snap, log,
+    // 장치 id(공기청정기 AP-…, 창문 WD-…)로 설정을 덮어쓴다
+    editDevices: (ids, patch) =>
+      setEdits((e) => ({ ...e, ...Object.fromEntries(ids.map((id) => [id, { ...e[id], ...patch }])) })),
     editPurifiers: (ids, patch) =>
       setEdits((e) => ({ ...e, ...Object.fromEntries(ids.map((id) => [id, { ...e[id], ...patch }])) })),
     resetEdits: () => setEdits({}),

@@ -74,6 +74,25 @@ export const purifiers = rooms.map((r) => ({
 }));
 
 // ─────────────────────────────────────────────
+// 창문 (교실당 1개, 축소 모형에서는 서보모터로 여닫음)
+// 반자동: Rule 엔진은 열기·닫기를 추천만 하고, 실행은 앱·웹에서 사람이 버튼을 눌러서 한다.
+// online: 제어 노드 연결 상태 (공기청정기와 같은 ESP32 제어 노드를 씀)
+// ─────────────────────────────────────────────
+const OPEN_WINDOWS = ['1-1', '2-5', '3-2'];
+
+export const windows = rooms.map((r) => ({
+  id: `WD-${r.id.toUpperCase()}`,
+  roomId: r.id,
+  online: r.id !== '3-5',
+  open: OPEN_WINDOWS.includes(r.id),
+  lastAction:
+    r.id === '2-5' ? '09:45 신태양 선생님: 앱에서 열기'
+    : OPEN_WINDOWS.includes(r.id) ? '09:20 담임: 앱에서 열기'
+    : r.id === '3-5' ? '09:39 연결 끊김'
+    : '08:50 닫힘',
+}));
+
+// ─────────────────────────────────────────────
 // 실외 미세먼지
 // sensor: 학교 앞 실외 센서 / api: 공공 API(측정소)
 // ─────────────────────────────────────────────
@@ -143,9 +162,10 @@ export const scenarios = {
 // 사용자 앱 홈 3가지 상태 (앱 디자인 기준값)
 // ─────────────────────────────────────────────
 export const appHomeStates = {
-  normal: { roomId: '2-2', sensor: { pm25: 12, co2: 620, temperature: 23.5, humidity: 46 }, outdoorPm25: 18 },
-  co2: { roomId: '2-2', sensor: { pm25: 18, co2: 1180, temperature: 24.0, humidity: 45 }, outdoorPm25: 28 },
-  outdoorBad: { roomId: '2-2', sensor: { pm25: 22, co2: 1080, temperature: 24.3, humidity: 43 }, outdoorPm25: 58 },
+  // windowOpen: 시연 시작 시 창문 상태 (실외 나쁨은 열려 있는 상태에서 닫기 추천을 보여 주려고 열림)
+  normal: { roomId: '2-2', sensor: { pm25: 12, co2: 620, temperature: 23.5, humidity: 46 }, outdoorPm25: 18, windowOpen: false },
+  co2: { roomId: '2-2', sensor: { pm25: 18, co2: 1180, temperature: 24.0, humidity: 45 }, outdoorPm25: 28, windowOpen: false },
+  outdoorBad: { roomId: '2-2', sensor: { pm25: 22, co2: 1080, temperature: 24.3, humidity: 43 }, outdoorPm25: 58, windowOpen: true },
 };
 
 // 사용자 앱 로그인 사용자 (더미)
@@ -168,6 +188,8 @@ export function historyFor(room) {
 // by: 'auto'(규칙) | 'manual'(사람), rule: 적용된 규칙 번호, roomId null이면 여러 교실
 // ─────────────────────────────────────────────
 export const controlLog = [
+  { id: 'w1', time: '09:48', roomId: '2-2', device: '창문', action: '창문 열기 추천 (CO₂ 1,180ppm, 실외 양호)', by: 'auto', rule: 2 },
+  { id: 'w2', time: '09:45', roomId: '2-5', device: '창문', action: '앱에서 창문 열기 (추천 실행)', by: 'manual', who: '신태양 선생님' },
   { id: 'c1', time: '09:32', roomId: '2-4', device: '공기청정기', action: '꺼짐에서 가동, 풍량 강', by: 'auto', rule: 1, detail: '오늘 09:32, PM2.5 41' },
   { id: 'c2', time: '09:28', roomId: '2-2', device: '환기 알림', action: '담임 선생님께 환기 권장 알림 발송', by: 'auto', rule: 2, detail: '오늘 09:28, CO₂ 1,180ppm, 실외 28' },
   { id: 'c3', time: '09:15', roomId: '1-3', device: '공기청정기', action: '풍량을 중으로 변경', by: 'manual', who: '김민수 주무관' },
@@ -181,8 +203,8 @@ export const controlLog = [
 // 규칙 4(ML 예측)는 이번 범위 제외 → future: true
 export const RULES = [
   { id: 1, title: '실내 PM2.5 35 이상', desc: '공기청정기 켜기, 35 아래면 끄기' },
-  { id: 2, title: 'CO₂ 1,000ppm 이상, 실외 양호', desc: '담임 선생님께 환기 권장 알림' },
-  { id: 3, title: 'CO₂ 1,000ppm 이상, 실외 나쁨', desc: '환기 제한 알림, 공기청정기 가동' },
+  { id: 2, title: 'CO₂ 1,000ppm 이상, 실외 양호', desc: '창문 열기 추천, 앱에서 눌러서 실행' },
+  { id: 3, title: 'CO₂ 1,000ppm 이상, 실외 나쁨', desc: '창문 닫기 추천, 공기청정기 가동' },
   { id: 4, title: '2시간 안에 실외 나쁨 예측', desc: '전 교실에 사전 환기 알림', future: true },
   { id: 5, title: '모든 수치 정상', desc: '공기청정기 절전 대기' },
 ];
