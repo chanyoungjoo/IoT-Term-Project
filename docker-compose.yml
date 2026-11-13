@@ -1,0 +1,10 @@
+# 라즈베리파이에서: docker compose up -d --build
+services:
+  airclass:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    container_name: airclass
+    ports:
+      - "80:80"          # Tailscale Funnel / Cloudflare Tunnel이 localhost:80으로 연결
+    restart: unless-stopped   # 라즈베리파이 재부팅 후 자동 시작

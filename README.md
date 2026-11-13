@@ -26,6 +26,7 @@
 - [기술 스택](#-기술-스택)
 - [폴더 구조](#-폴더-구조)
 - [실행 방법](#-실행-방법)
+- [라즈베리파이 배포](#-라즈베리파이-배포-팀원-공유)
 - [시연 방법](#-시연-방법)
 - [앞으로 할 일](#-앞으로-할-일)
 
@@ -263,6 +264,8 @@ airclass/
 ├── 🧠 shared/              # 웹·앱 공용 코드
 │   ├── dummyData.js       #   더미 데이터 (교실 24개, 실외값, 알림, 공기청정기 · 창문, 제어 기록)
 │   └── rules.js           #   상태 판정 + 자동 제어 규칙 + 창문 추천 (recommendWindow)
+├── 🍓 deploy/              # 라즈베리파이 배포 (Dockerfile, nginx.conf)
+├── 🐳 docker-compose.yml   # docker compose up -d --build
 ├── 🖥️ web/                 # 관리자 웹 (React + Vite)
 │   └── src/
 │       ├── api.js         #   데이터 접근 창구 (→ 나중에 FastAPI)
@@ -315,6 +318,31 @@ npm run build:web  # → app/dist/ (주소 /app/ 기준)
 > 실제 iPhone의 **Expo Go**로 열려면 컴퓨터의 Expo CLI와 iPhone의 Expo Go가
 > **같은 Expo 계정**으로 로그인돼 있어야 해요. Mac에 Xcode가 있다면 `npx expo start --ios`로
 > 시뮬레이터에서 로그인 없이 열 수 있어요.
+
+---
+
+## 🍓 라즈베리파이 배포 (팀원 공유)
+
+관리자 웹(`/`)과 사용자 앱 웹 빌드(`/app/`)를 **nginx 하나로** 띄우고, Tailscale Funnel로 공개 주소를 붙여요.
+
+```bash
+# 라즈베리파이에서 (Docker 설치 필요: curl -fsSL https://get.docker.com | sh)
+git clone https://github.com/chanyoungjoo/IoT-Term-Project.git airclass
+cd airclass
+docker compose up -d --build      # 웹·앱 빌드 → nginx로 80번 포트에서 서빙 (첫 빌드는 몇 분 걸려요)
+sudo tailscale funnel --bg 80     # https://<라파이름>.<tailnet>.ts.net 공개 주소
+```
+
+| 주소 | 화면 |
+|---|---|
+| `https://<라파이름>.<tailnet>.ts.net/` | 🖥️ 관리자 웹 |
+| `https://<라파이름>.<tailnet>.ts.net/app/` | 📱 사용자 앱 (휴대폰 브라우저) |
+
+코드를 바꾼 뒤 다시 배포할 때는 `git pull && docker compose up -d --build`만 하면 돼요.
+배포 파일: `docker-compose.yml`, `deploy/Dockerfile`(웹 빌드 → 앱 빌드 → nginx), `deploy/nginx.conf`.
+
+> [!WARNING]
+> Funnel 주소는 **링크를 아는 누구나** 접속할 수 있어요. 실제 센서·제어 API를 붙이기 전에 로그인을 추가해야 해요.
 
 ---
 

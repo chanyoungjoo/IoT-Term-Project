@@ -1,0 +1,9 @@
+# 이미지 빌드에 필요 없는 것 (맥의 node_modules가 섞이면 arm64 빌드가 깨짐)
+**/node_modules
+**/dist
+**/.expo
+.git
+.claude
+docs
+graphify-out
+**/.DS_Store

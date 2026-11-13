@@ -113,6 +113,11 @@ airclass/
 - 앱: `cd app && npm install && npx expo start`
 - 앱 웹 빌드: `cd app && npm run build:web` → `app/dist/` (기준 경로 `/app`, `app.json`의 `experiments.baseUrl`). 라즈베리파이 nginx의 `/app/`에 올리고 `try_files $uri /app/index.html;`로 새로고침을 처리한다.
 
+## 배포 (라즈베리파이)
+
+- `docker compose up -d --build` → `deploy/Dockerfile`이 웹 테스트·빌드 → 앱 웹 빌드 → nginx 이미지로 묶어 80번 포트에서 서빙한다. `/`는 관리자 웹, `/app/`은 앱 웹 빌드.
+- 공개 주소는 Tailscale Funnel(`sudo tailscale funnel --bg 80`). 라우팅 규칙을 바꾸면 `deploy/nginx.conf`의 새로고침 처리(`try_files`)도 확인한다.
+
 ## 검증 (프로젝트 하네스)
 
 - `.js/.jsx` 파일을 고치면 `.claude/hooks/check.mjs`가 자동으로 oxlint를 실행하고, `shared/` 또는 `web/src/api*`를 고치면 자동 제어 규칙 테스트(`npm test`)까지 실행한다. **검사 실패 메시지가 오면 다음 작업으로 넘어가지 말고 먼저 고친다.**
