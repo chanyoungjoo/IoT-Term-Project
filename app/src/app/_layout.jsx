@@ -5,13 +5,15 @@ import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { House, Fan, ChartColumn, User } from 'lucide-react-native';
+import { House, Fan, Sparkles, ChartColumn, User } from 'lucide-react-native';
 import { AppState } from '../store';
 import { currentTeacher } from '../api';
 import { C, shadow } from '../theme';
 import { T } from '../ui';
 import { PressScale, SlidingPill, useAnimatedTo } from '../motion';
 import Splash from '../Splash';
+import { useAirChatStore } from '../useAirChat';
+import { useKeyboardVisible } from '../useKeyboard';
 
 // 폰트를 불러오는 동안 네이티브 스플래시를 유지하고, 앱 스플래시(Splash)가 그려지면 내린다
 SplashScreen.preventAutoHideAsync();
@@ -19,6 +21,7 @@ SplashScreen.preventAutoHideAsync();
 const TABS = {
   index: { label: '홈', icon: House },
   control: { label: '제어', icon: Fan },
+  airchat: { label: 'AirChat', icon: Sparkles }, // 말로 예약·규칙 만들기
   forecast: { label: '예측·알림', icon: ChartColumn },
   settings: { label: '설정', icon: User },
 };
@@ -39,12 +42,14 @@ export default function RootLayout() {
   const changeDemo = (k) => { setDemo(k); setWindowEdits({}); };
   const setWindowOpen = (id, open) => setWindowEdits((w) => ({ ...w, [id]: open }));
   const [splashDone, setSplashDone] = useState(false);
+  // AirChat 대화·예약·규칙 (탭을 옮겨도 유지, 예약 실행기도 여기서 돈다)
+  const chat = useAirChatStore({ demo, edits, setEdits, windowEdits, setWindowOpen });
 
   if (!loaded) return null;
 
   return (
     <SafeAreaProvider>
-      <AppState.Provider value={{ roomId, setRoomId, demo, setDemo: changeDemo, edits, setEdits, windowEdits, setWindowOpen }}>
+      <AppState.Provider value={{ roomId, setRoomId, demo, setDemo: changeDemo, edits, setEdits, windowEdits, setWindowOpen, chat }}>
         <StatusBar style="auto" />
         <Tabs screenOptions={{ headerShown: false, animation: 'shift' }} tabBar={(props) => <FloatingTabBar {...props} />}>
           {Object.keys(TABS).map((name) => <Tabs.Screen key={name} name={name} />)}
@@ -60,6 +65,8 @@ export default function RootLayout() {
 function FloatingTabBar({ state, emitter, navigateToTab }) {
   const insets = useSafeAreaInsets();
   const [w, setW] = useState(0);
+  const keyboard = useKeyboardVisible();
+  if (keyboard) return null; // 키보드가 올라오면 탭바를 숨겨 AirChat 입력창을 가리지 않게
   return (
     <View
       style={[s.wrap, { bottom: Math.max(insets.bottom, 12) }]} accessibilityRole="tablist"
