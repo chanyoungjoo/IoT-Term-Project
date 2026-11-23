@@ -17,6 +17,7 @@ import { C, FONT } from '../theme';
 import { useScrollTop } from '../useScrollTop';
 import { T, Card, Header } from '../ui';
 import { FadeIn, PressScale } from '../motion';
+import { CountText } from '../textMotion';
 import {
   buildEpisodes, buildPeriods, duration, getTrend, hm, minutesOver, CO2_LIMIT, PM_IN_LIMIT, PM_LIMIT,
 } from '../history';
@@ -132,7 +133,7 @@ function NowRow({ label, value, unit, chip }) {
       <View>
         {label ? <T size={12} color={C.textSub}>{label}</T> : null}
         <View style={s.valueRow}>
-          <T w={800} size={28}>{value}</T>
+          <CountText w={800} size={28} value={value} />
           <T size={13} color={C.textSub} style={{ marginLeft: 3 }}>{unit}</T>
         </View>
       </View>

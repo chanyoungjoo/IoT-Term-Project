@@ -4,6 +4,7 @@ import { Animated, Switch as RNSwitch, Text, View, StyleSheet } from 'react-nati
 import { useRouter } from 'expo-router';
 import { Bell, Wind } from 'lucide-react-native';
 import { C, FONT, LEVEL, shadow } from './theme';
+import { CountText } from './textMotion';
 import { PressScale, SlidingPill, useAnimatedTo } from './motion';
 
 export function T({ w = 400, size = 15, color = C.text, style, ...rest }) {
@@ -73,9 +74,11 @@ export function MetricCard({ icon: Icon, label, value, unit, level, levelText, r
         <Chip level={level}>{levelText}</Chip>
       </View>
       <T size={14} color={C.textSub} style={{ marginTop: 12 }}>{label}</T>
-      <T w={800} size={26}>
-        {value}<T size={13} color={C.textSub}> {unit}</T>
-      </T>
+      {/* 숫자는 세어 올라가며 바뀜 (textMotion.jsx) */}
+      <View style={s.metricValue}>
+        <CountText w={800} size={26} value={value} />
+        <T size={13} color={C.textSub}> {unit}</T>
+      </View>
       <View style={s.track} accessibilityElementsHidden importantForAccessibility="no">
         <Animated.View style={[s.fill, { width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }), backgroundColor: l.bar }]} />
         {mark != null && <View style={[s.mark, { left: `${mark * 100}%` }]} />}
@@ -113,6 +116,7 @@ const s = StyleSheet.create({
   seg: { flexDirection: 'row', backgroundColor: C.bg, borderRadius: 14, padding: 4 },
   segItem: { flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 11 },
   segPill: { top: 4, bottom: 4, left: 4, borderRadius: 11, backgroundColor: C.surface, ...shadow },
+  metricValue: { flexDirection: 'row', alignItems: 'baseline' },
   metric: { flex: 1, padding: 16 },
   metricTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   metricIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },

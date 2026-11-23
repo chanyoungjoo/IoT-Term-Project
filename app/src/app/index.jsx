@@ -12,6 +12,7 @@ import { Gradient } from '../Gradient';
 import { T, Card, Header, MetricCard, Segmented } from '../ui';
 import { FadeIn, PressScale, useAnimatedColor, useAnimatedTo } from '../motion';
 import WindowArt from '../WindowArt';
+import { CountText, SwapText } from '../textMotion';
 import WindowCard from '../WindowCard';
 
 const fmt = (n) => n.toLocaleString('ko-KR');
@@ -65,13 +66,15 @@ export default function Home() {
             status={outState === 'bad' ? '나쁨' : outState === 'good' ? '보통' : '알 수 없음'} />
         </View>
 
-        {/* 제목·설명 (가운데 정렬). 상태는 배경색·제목·숫자 칩으로 충분해서 라벨 칩은 뺌 */}
-        <FadeIn key={decision.rule} delay={80} style={{ alignItems: 'center', marginTop: 20 }}>
-          <T w={800} size={26} color={hero.fg} style={[s.center, { lineHeight: 34 }]} lineBreakStrategyIOS="hangul-word" accessibilityRole="header">
+        {/* 제목·설명 (가운데 정렬). 상태가 바뀌면 이전 문구는 위로, 새 문구는 아래에서 올라옴 (textMotion.jsx) */}
+        <View style={{ marginTop: 20 }}>
+          <SwapText w={800} size={26} color={hero.fg} style={[s.center, { lineHeight: 34 }]} lineBreakStrategyIOS="hangul-word" accessibilityRole="header">
             {decision.title}
-          </T>
-          <T size={15} color={hero.sub} style={[s.center, { lineHeight: 22, marginTop: 6 }]} lineBreakStrategyIOS="hangul-word">{decision.message}</T>
-        </FadeIn>
+          </SwapText>
+          <SwapText size={15} color={hero.sub} style={[s.center, { lineHeight: 22 }]} containerStyle={{ marginTop: 6 }} lineBreakStrategyIOS="hangul-word">
+            {decision.message}
+          </SwapText>
+        </View>
       </Animated.View>
 
       <View style={s.body}>
@@ -148,10 +151,10 @@ function HeroMetric({ hero, label, value, unit, bad, status }) {
     <View style={[s.metricCard, { backgroundColor: hero.glass }]} accessible accessibilityLabel={`${label} ${value}, ${status}`}>
       <T w={600} size={13} color={hero.sub} numberOfLines={1}>{label}</T>
       {/* 숫자 + 단위를 한 줄에 (단위는 항상 표시) */}
-      <FadeIn key={value} from={6} style={s.valueRow}>
-        <T w={800} size={28} color={hero.fg} numberOfLines={1}>{value}</T>
+      <View style={s.valueRow}>
+        <CountText w={800} size={28} color={hero.fg} numberOfLines={1} value={value} />
         <T w={600} size={12} color={hero.sub} style={s.unit}>{unit}</T>
-      </FadeIn>
+      </View>
       {/* 기준을 넘은 숫자에만 반전색 칩 */}
       {bad ? (
         <View style={[s.miniChip, { backgroundColor: hero.fg, alignSelf: 'center', marginTop: 2 }]}>

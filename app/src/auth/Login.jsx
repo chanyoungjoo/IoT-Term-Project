@@ -3,14 +3,15 @@
 // - 5번 틀리면 1분 잠금, 승인 대기 계정은 안내 문구
 // - 가운데 큰 창문 그림(P-3): 4초마다 창이 열려 바람이 들어오고 다시 닫힘 (홈 화면 '환기'와 같은 동작)
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { Lock, User, Wind } from 'lucide-react-native';
 import { Gradient } from '../Gradient';
 import { C, GRAD } from '../theme';
 import { T } from '../ui';
-import { FadeIn, useReducedMotion } from '../motion';
+import { FadeIn, TEMPO, useReducedMotion } from '../motion';
+import { SwapText } from '../textMotion';
 import { DEMO_ACCOUNT, login } from './authApi';
 import { Btn, CheckRow, Field, Screen } from './parts';
 
@@ -48,8 +49,8 @@ export default function Login({ nav, params, onLogin }) {
           <T w={800} size={18} color="#fff">AirClass</T>
         </Pressable>
         <View style={s.window} pointerEvents="none"><AnimatedWindow size={150} /></View>
-        <FadeIn delay={80}>
-          <T w={800} size={25} color="#fff" style={s.title} accessibilityRole="header">교실 공기, AirClass가 챙길게요</T>
+        <FadeIn delay={80} style={s.titleBox}>
+          <RotatingTitle />
         </FadeIn>
       </View>
 
@@ -77,6 +78,31 @@ export default function Login({ nav, params, onLogin }) {
       </FadeIn>
       </View>
     </Screen>
+  );
+}
+
+// 제목 두 줄: 첫 줄 '교실 공기'는 고정, 둘째 줄은 서비스 소개 문구가 차례로 바뀜 (K-5)
+// 바뀔 때는 이전 문구가 위로 사라지고 새 문구가 아래에서 올라옴 (SwapText)
+const TAGLINES = ['AirClass가 챙길게요', '환기할 때를 알려 드려요', '버튼 하나로 창문 열기', '궁금하면 AirChat에 물어보세요'];
+const TAGLINE_MS = Math.round(2000 * TEMPO); // 문구 하나가 보이는 시간 (약 2.8초)
+
+function RotatingTitle() {
+  const [i, setI] = useState(0);
+  // 가장 긴 문구(14자)가 화면 폭에 한 줄로 들어가는 글자 크기 (최대 27). 393 폭 → 24, 375 폭 → 23
+  const { width } = useWindowDimensions();
+  const size = Math.min(27, Math.floor((width - 44) / 14.2));
+  useEffect(() => {
+    const id = setInterval(() => setI((n) => (n + 1) % TAGLINES.length), TAGLINE_MS);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    // 화면 읽기 기능에는 바뀌는 문구 대신 대표 문장 하나만 읽어 줌
+    <View accessible accessibilityRole="header" accessibilityLabel="교실 공기, AirClass가 챙길게요">
+      <T w={800} size={size} color="#fff" style={[s.title, { lineHeight: size + 9 }]}>교실 공기</T>
+      <SwapText w={800} size={size} color="#fff" style={[s.title, { lineHeight: size + 9 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
+        {TAGLINES[i]}
+      </SwapText>
+    </View>
   );
 }
 
@@ -129,7 +155,8 @@ function AnimatedWindow({ size = 124 }) {
 const s = StyleSheet.create({
   hero: { paddingHorizontal: 22, paddingBottom: 66, overflow: 'hidden', alignItems: 'center' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { marginTop: 4, lineHeight: 34, textAlign: 'center' },
+  titleBox: { alignSelf: 'stretch', marginTop: 4 },
+  title: { lineHeight: 36, textAlign: 'center' },
   window: { marginTop: 8 },
   // 흰 바탕은 바깥(sheetWrap)에: 안쪽 내용이 서서히 나타나는 동안에도 뒤의 홈이 비치지 않게
   sheetWrap: { flex: 1, marginTop: -36, backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
