@@ -1,5 +1,17 @@
 # 라즈베리파이에서: docker compose up -d --build
 services:
+  # API 서버 (AirChat → Claude Haiku). 포트를 밖으로 열지 않고 nginx만 내부 네트워크로 접근한다.
+  api:
+    build:
+      context: .
+      dockerfile: deploy/api.Dockerfile
+    container_name: airclass-api
+    env_file:
+      - path: server/.env   # API 키. 깃에 올리지 않는 파일 (server/.env.example 참고)
+        required: false     # 없어도 웹·앱은 뜨고, AirChat은 앱의 기본 응답으로 동작
+    restart: unless-stopped
+
+  # nginx: 관리자 웹(/) + 앱 웹 빌드(/app/) + API 프록시(/api/)
   airclass:
     build:
       context: .
@@ -7,4 +19,6 @@ services:
     container_name: airclass
     ports:
       - "80:80"          # Tailscale Funnel / Cloudflare Tunnel이 localhost:80으로 연결
+    depends_on:
+      - api
     restart: unless-stopped   # 라즈베리파이 재부팅 후 자동 시작

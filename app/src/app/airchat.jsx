@@ -1,6 +1,6 @@
 // AirChat 탭: 말로 예약하고, 규칙을 만들고, "왜?"를 묻는 채팅 화면
 // 지금 바로 켜고 끄는 건 제어 탭의 일이라 여기서는 "앞으로의 예약·규칙"과 "이유 설명"만 다룬다.
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -10,7 +10,7 @@ import { useAppState } from '../store';
 import { C, FONT, shadow } from '../theme';
 import { T } from '../ui';
 import { FadeIn, PressScale, useReducedMotion } from '../motion';
-import { DEFAULT_CHIPS, hhmm, reply } from '../airchat';
+import { DEFAULT_CHIPS, DEMO_TIMETABLE, checkServer, hhmm, remoteReply, reply } from '../airchat';
 import { AiAvatar, AiMessage, AutomationsSheet, EventBubble, TypingBubble, UserBubble } from '../AirChatParts';
 import { useKeyboardVisible } from '../useKeyboard';
 
@@ -25,12 +25,21 @@ export default function AirChat() {
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
   const [sheet, setSheet] = useState(false);
+  // AI 서버 연결 상태: null(확인 중) · true(Claude 응답) · false(앱 기본 응답)
+  const [online, setOnline] = useState(null);
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
 
+  // 화면이 열릴 때 서버 상태 확인
+  useEffect(() => {
+    let alive = true;
+    checkServer().then((ok) => alive && setOnline(ok));
+    return () => { alive = false; };
+  }, []);
+
   const scrollToEnd = () => scrollRef.current?.scrollToEnd({ animated: true });
 
-  // 엔진에 넘길 지금 교실 상황 (나중에 서버로 바꾸면 서버가 직접 조회)
+  // 엔진(서버·모의)에 넘길 지금 교실 상황 (나중에는 서버가 DB에서 직접 조회)
   const buildContext = () => {
     const view = getRoomView(roomId, demo, windowEdits[roomId]);
     const purifier = { ...getPurifier(roomId), ...edits[roomId] };
@@ -41,29 +50,43 @@ export default function AirChat() {
       ctx: {
         now: Date.now(), roomId, roomName: view.room.name, teacher: currentTeacher.name,
         sensor: view.sensor, purifierOn: purifier.online && purifier.power, purifierMode: purifier.mode,
+        windowOpen: view.window.open, timetable: DEMO_TIMETABLE,
         decision: view.decision, lastEvent, schedules: chat.schedules, rules: chat.rules, draftRule: draftMsg?.card ?? null,
       },
       draftMsg,
     };
   };
 
-  const send = (raw) => {
+  const send = async (raw) => {
     const text = (raw ?? input).trim();
     if (!text || thinking) return;
     setInput('');
+    const { ctx, draftMsg } = buildContext();
+    const history = chat.messages; // 이번 메시지를 넣기 전까지의 대화
     chat.addMessages({ role: 'user', text });
     setThinking(true);
-    const { ctx, draftMsg } = buildContext();
-    const res = reply(text, ctx);
-    // 실제 LLM처럼 잠깐 "입력 중…"을 보여 준 뒤 답을 스트리밍
-    const wait = reduced ? 150 : 650 + Math.min(500, text.length * 12);
-    setTimeout(() => {
-      setThinking(false);
-      if (res.card?.type === 'rule' && draftMsg) {
-        chat.updateMessage(draftMsg.id, { card: { ...draftMsg.card, status: 'replaced' } }); // 고친 규칙으로 교체
-      }
-      chat.addMessages({ role: 'ai', ...res, fresh: true });
-    }, wait);
+    const started = Date.now();
+
+    // 서버(Claude)에 먼저 묻고, 안 되면 앱의 모의 엔진으로 대신 답함
+    let res;
+    try {
+      res = await remoteReply(text, ctx, history);
+      setOnline(true);
+    } catch (e) {
+      console.warn('[AirChat] 서버 연결 실패, 기본 응답 사용:', e.message);
+      res = reply(text, ctx);
+      setOnline(false);
+    }
+
+    // 답이 너무 빨리 와도 "입력 중…"을 잠깐은 보여 줘야 자연스러움
+    const left = (reduced ? 150 : 650) - (Date.now() - started);
+    if (left > 0) await new Promise((r) => setTimeout(r, left));
+
+    setThinking(false);
+    if (res.card?.type === 'rule' && draftMsg) {
+      chat.updateMessage(draftMsg.id, { card: { ...draftMsg.card, status: 'replaced' } }); // 고친 규칙으로 교체
+    }
+    chat.addMessages({ role: 'ai', ...res, fresh: true });
   };
 
   // 카드 버튼 처리
@@ -102,7 +125,15 @@ export default function AirChat() {
       <View style={[s.header, { paddingTop: insets.top + 10 }]}>
         <View style={s.title}>
           <AiAvatar size={38} radius={12} />
-          <T w={800} size={22} accessibilityRole="header">AirChat</T>
+          <View>
+            <T w={800} size={22} accessibilityRole="header">AirChat</T>
+            {online !== null && (
+              <View style={s.status} accessibilityLabel={online ? 'AI 서버 연결됨' : 'AI 서버 연결 안 됨, 기본 응답 사용 중'}>
+                <View style={[s.statusDot, { backgroundColor: online ? C.ok : '#a0a8b8' }]} />
+                <T w={600} size={11} color={C.textSub}>{online ? 'Claude 연결됨' : '기본 응답 모드'}</T>
+              </View>
+            )}
+          </View>
         </View>
         <PressScale onPress={() => setSheet(true)} style={s.autoBtn} accessibilityRole="button" accessibilityLabel={`내 자동화 ${autoCount}개`}>
           <Clock size={16} color={C.primaryDeep} strokeWidth={2.2} />
@@ -185,6 +216,8 @@ export default function AirChat() {
 const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 10 },
   title: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  status: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
   autoBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.surface, borderRadius: 12, paddingHorizontal: 12, minHeight: 40, ...shadow },
   badge: { backgroundColor: C.primaryDeep, borderRadius: 999, minWidth: 20, paddingHorizontal: 6, paddingVertical: 1, alignItems: 'center' },
   list: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 16, gap: 14 },

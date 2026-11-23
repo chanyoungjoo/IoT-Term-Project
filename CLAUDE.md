@@ -117,6 +117,8 @@ airclass/
 
 - `docker compose up -d --build` → `deploy/Dockerfile`이 웹 테스트·빌드 → 앱 웹 빌드 → nginx 이미지로 묶어 80번 포트에서 서빙한다. `/`는 관리자 웹, `/app/`은 앱 웹 빌드.
 - 공개 주소는 Tailscale Funnel(`sudo tailscale funnel --bg 80`). 라우팅 규칙을 바꾸면 `deploy/nginx.conf`의 새로고침 처리(`try_files`)도 확인한다.
+- AirChat 서버: `server/`(Node 기본 http + `@anthropic-ai/sdk`) → `api` 컨테이너(`deploy/api.Dockerfile`), nginx가 `/api/`를 프록시(분당 20회 제한). 키는 `server/.env`(깃 제외), 형식은 `server/.env.example`.
+- 앱은 `remoteReply()`(airchat.js)로 서버에 묻고 실패하면 모의 엔진 `reply()`로 폴백한다. LLM은 제안(`propose_schedule`, `propose_rule`)만 하고, 시각 계산·카드 생성·등급 판단은 코드가 한다.
 
 ## 검증 (프로젝트 하네스)
 

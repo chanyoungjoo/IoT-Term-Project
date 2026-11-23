@@ -1,7 +1,7 @@
-// AirChat 응답 엔진 (모의 버전)
-// - 지금은 앱 안에서 간단한 문장 규칙으로 LLM 응답을 흉내 낸다.
-// - 나중에 라즈베리파이 서버의 /api/chat (Claude Haiku + 도구 호출)로 바꿀 때 reply()만 교체하면 된다.
-//   (입력: 사용자 문장 + ctx / 출력: { text, card?, note?, chips })
+// AirChat 응답 엔진
+// - remoteReply(): 라즈베리파이 서버의 /api/chat (Claude Haiku + 도구 호출)에 묻는다. (기본)
+// - reply(): 서버에 닿지 않을 때 쓰는 모의 엔진. 간단한 문장 규칙으로 LLM 응답을 흉내 낸다.
+//   둘 다 출력 모양이 같다: { text, card?, note?, chips }
 // - 원칙: AirChat은 장치를 직접 켜고 끄지 않는다. "예약·규칙 제안 카드"만 만들고,
 //   사람이 카드의 버튼을 눌러야 등록된다. 지금 바로 켜고 끄는 건 제어 탭의 일이다.
 
@@ -113,19 +113,24 @@ function afterSchoolRule(ctx, quote) {
 
 // ── "왜?" 설명 ──────────────────────────────────
 
+// 예약 실행 근거 기록 카드 (모의 엔진·서버 응답 공통)
+export function evidenceCard(ev, ctx) {
+  return {
+    type: 'evidence',
+    items: [
+      { time: hhmm(ev.createdAt), tone: 'primary', text: `${ctx.teacher} 선생님이 AirChat으로 “${ev.quote}” 예약` },
+      { time: hhmm(ev.ranAt), tone: 'ok', text: `실행 전 확인: 연결 정상, PM2.5 ${ev.pmAtRun} → ${ACTION_NAME[ev.action]} 실행` },
+      { time: hhmm(ev.ranAt), tone: 'ok', text: `장치 응답: ${RESULT_NAME[ev.action]} ✅` },
+    ],
+  };
+}
+
 function explain(ctx) {
   const ev = ctx.lastEvent; // 이 교실 공기청정기의 가장 최근 예약 실행
   if (ev) {
     return {
       text: `**선생님이 ${hhmm(ev.createdAt)}에 예약한 동작**이에요. 자동 규칙 때문에 ${ADJ[ev.action]} 건 아니에요.`,
-      card: {
-        type: 'evidence',
-        items: [
-          { time: hhmm(ev.createdAt), tone: 'primary', text: `${ctx.teacher} 선생님이 AirChat으로 “${ev.quote}” 예약` },
-          { time: hhmm(ev.ranAt), tone: 'ok', text: `실행 전 확인: 연결 정상, PM2.5 ${ev.pmAtRun} → ${ACTION_NAME[ev.action]} 실행` },
-          { time: hhmm(ev.ranAt), tone: 'ok', text: `장치 응답: ${RESULT_NAME[ev.action]} ✅` },
-        ],
-      },
+      card: evidenceCard(ev, ctx),
       note: ctx.purifierOn && ctx.sensor.pm25 < PM_BAD
         ? `지금 교실 PM2.5는 ${ro(ctx.sensor.pm25)} 깨끗해서, 오래 켜 둘 필요는 없어요.`
         : null,
@@ -249,4 +254,175 @@ export function reply(raw, ctx) {
     text: '아직 그건 잘 모르겠어요. 이런 걸 할 수 있어요.\n· 시간 예약: “1분 뒤에 청정기 켜줘”\n· 자동 규칙: “시험 시간엔 청정기 꺼줘”\n· 이유 설명: “청정기 왜 켜졌어?”',
     chips: DEFAULT_CHIPS,
   };
+}
+
+// ── 서버(LLM) 연결 ───────────────────────────────
+// 웹 빌드(라파 nginx)에서는 같은 주소의 /api/chat 을 쓴다.
+// 맥에서 expo start로 개발할 때는 app/.env 에 EXPO_PUBLIC_API_URL=https://<라파 Funnel 주소> 를 넣으면
+// 라파 서버에 바로 붙는다. 없거나 연결이 안 되면 호출한 쪽에서 모의 엔진 reply()로 대신한다.
+const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/$/, '');
+const API_TIMEOUT = 30000; // 서버 쪽 제한(25초)보다 조금 길게
+
+// 시연용 시간표 ("시험 시간" 규칙 해석용, 나중에 서버의 학교 시간표로 교체)
+export const DEMO_TIMETABLE = '오늘 5교시(13:40~14:25) 수학 시험';
+
+const CHIPS = {
+  schedule: ['예약 뭐 있어?', '청정기 왜 켜졌어?', '시험 시간엔 청정기 꺼줘'],
+  rule: ['기준을 40으로 바꿔줘', '규칙 뭐 있어?', '1분 뒤에 청정기 켜줘'],
+  why: ['30분 뒤에 꺼줘', '예약 뭐 있어?', '시험 시간엔 청정기 꺼줘'],
+};
+const VALID_ACTIONS = { purifier: ['on', 'off'], window: ['open', 'close'] };
+
+// 서버 상태 확인: API 키까지 설정돼 있으면 true
+export async function checkServer() {
+  try {
+    const res = await fetch(`${API_BASE}/api/health`);
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data?.keySet === true;
+  } catch {
+    return false;
+  }
+}
+
+// 앱이 아는 기록 → 서버(LLM)가 "왜?"에 답할 때 볼 기록
+function eventsFor(ctx) {
+  const rows = [];
+  for (const s of ctx.schedules.filter((x) => x.roomId === ctx.roomId)) {
+    rows.push({ time: hhmm(s.createdAt), device: s.device, text: `선생님이 AirChat으로 “${s.quote}” 예약 (실행 예정 ${hhmm(s.at)})` });
+    if (s.status === 'done') {
+      rows.push({ time: hhmm(s.ranAt), device: s.device, text: `예약 실행: 장치 연결 정상, PM2.5 ${s.pmAtRun} → ${ACTION_NAME[s.action]}, 장치 응답 ${RESULT_NAME[s.action]}` });
+    } else if (s.status === 'skipped') {
+      rows.push({ time: hhmm(s.ranAt), device: s.device, text: `예약을 실행하지 않음: ${s.reason}` });
+    }
+  }
+  // 예약 말고 지금 상태를 만든 원인 (수동 조작 / 자동 규칙)
+  if (ctx.purifierMode === 'manual') {
+    rows.push({ time: hhmm(ctx.now), device: 'purifier', text: `공기청정기는 수동 모드 (${ctx.purifierOn ? '켜짐' : '꺼짐'}), 자동 규칙이 건드리지 않음` });
+  } else if (ctx.decision?.title) {
+    rows.push({ time: hhmm(ctx.now), device: 'purifier', text: `자동 규칙 ${ctx.decision.rule}번 적용 중: ${ctx.decision.title.replace('\n', ' ')}` });
+  }
+  return rows.slice(-12);
+}
+
+// 서버로 보낼 교실 상황 (숫자와 사실만, 판단은 서버 코드가 함)
+function toContext(ctx) {
+  return {
+    roomName: ctx.roomName,
+    pm25: ctx.sensor.pm25,
+    co2: ctx.sensor.co2,
+    purifierOn: Boolean(ctx.purifierOn),
+    windowOpen: Boolean(ctx.windowOpen),
+    timetable: ctx.timetable ?? DEMO_TIMETABLE,
+    events: eventsFor(ctx),
+    schedules: ctx.schedules
+      .filter((s) => s.roomId === ctx.roomId && s.status === 'pending')
+      .map((s) => `${hhmm(s.at)} ${DEVICE_NAME[s.device]} ${ACTION_NAME[s.action]} (대기 중)`),
+    rules: ctx.rules.map((r) => `${r.name}: ${r.summary}${r.on ? '' : ' (꺼 둠)'}`),
+  };
+}
+
+// 이전 카드 내용을 대화 기록에 같이 넣어서 "50 말고 40으로" 같은 이어지는 말을 알아듣게 함
+function cardSummary(card) {
+  if (card?.type === 'schedule') {
+    return ` [제안한 예약: ${hhmm(card.at)} ${DEVICE_NAME[card.device]} ${ACTION_NAME[card.action]}${card.status === 'booked' ? ', 예약됨' : ''}]`;
+  }
+  if (card?.type === 'rule') {
+    return ` [제안한 규칙: ${card.name} / 언제: ${card.when} / 예외: ${card.except}${card.status === 'added' ? ', 추가됨' : ''}]`;
+  }
+  return '';
+}
+
+function toHistory(messages) {
+  return messages
+    .filter((m) => (m.role === 'user' || m.role === 'ai') && m.id !== 'greeting' && m.text)
+    .slice(-8)
+    .map((m) => ({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text + cardSummary(m.card) }));
+}
+
+// 서버의 예약 제안 → 예약 카드 (시각 계산은 LLM이 아니라 여기서)
+function scheduleFromProposal(input, raw, ctx) {
+  const { device, action } = input ?? {};
+  if (!VALID_ACTIONS[device]?.includes(action)) return null;
+  let at = null;
+  if (Number.isFinite(input.delay_seconds) && input.delay_seconds > 0) {
+    at = ctx.now + input.delay_seconds * 1000;
+  } else if (/^\d{1,2}:\d{2}$/.test(input.at ?? '')) {
+    const [h, m] = input.at.split(':').map(Number);
+    const d = new Date(ctx.now);
+    d.setHours(h, m, 0, 0);
+    at = d.getTime();
+  }
+  // 지난 시각이거나 24시간 넘게 남은 예약은 받지 않음
+  if (!at || at <= ctx.now || at - ctx.now > 24 * 3600 * 1000) return null;
+  const warn = device === 'purifier' && action === 'off' && ctx.sensor.pm25 >= PM_BAD
+    ? `지금 PM2.5가 ${ieyo(ctx.sensor.pm25)}. 실행할 때도 ${PM_BAD} 이상이면 끄지 않고 알려 드려요.`
+    : null;
+  return { type: 'schedule', roomId: ctx.roomId, roomName: ctx.roomName, device, action, at, quote: raw, warn };
+}
+
+// 서버의 규칙 제안 → 규칙 카드
+function ruleFromProposal(input, raw, ctx) {
+  const { name, when, device, action, exception } = input ?? {};
+  if (!name || !when || !VALID_ACTIONS[device]?.includes(action)) return null;
+  const threshold = Number((String(exception ?? '').match(/\d+/) ?? [])[0]) || null;
+  const pm = ctx.sensor.pm25;
+  const preview = device === 'purifier' && action === 'off' && threshold
+    ? (pm < threshold
+      ? `지금 상태라면 PM2.5가 ${ira(pm)} 조건이 되면 꺼져요.`
+      : `지금은 PM2.5가 ${ira(pm)} 조건이 돼도 켜 둬요.`)
+    : '서버 규칙 엔진이 연결되면 적용돼요.';
+  // 같은 규칙을 고치는 중이면 처음 했던 말을 유지
+  const quote = ctx.draftRule?.name === name ? ctx.draftRule.quote : raw;
+  return {
+    type: 'rule',
+    id: `llm-${name}`, // 같은 이름이면 내 자동화에서 덮어씀
+    name,
+    quote,
+    when,
+    action: `${ctx.roomName} ${DEVICE_NAME[device]} ${ACTION_NAME[action]}`,
+    except: exception || '없음',
+    summary: `${when} → ${DEVICE_NAME[device]} ${ACTION_NAME[action]}${threshold ? ` · PM2.5 ${threshold}↑이면 예외` : ''}`,
+    threshold,
+    preview,
+  };
+}
+
+// 서버 응답 → 화면 메시지
+function fromServer(data, raw, ctx) {
+  const text = (data.text ?? '').trim();
+  const p = data.proposal;
+  if (p?.type === 'schedule') {
+    const card = scheduleFromProposal(p.input, raw, ctx);
+    if (card) return { text: text || '이렇게 예약할까요?', card, chips: CHIPS.schedule, source: 'llm' };
+    return { text: text || '예약 시각을 확인하지 못했어요.', note: '오늘 안의 시각으로 다시 말씀해 주세요.', chips: DEFAULT_CHIPS, source: 'llm' };
+  }
+  if (p?.type === 'rule') {
+    const card = ruleFromProposal(p.input, raw, ctx);
+    if (card) return { text: text || '이렇게 규칙을 만들어 볼게요.', card, chips: CHIPS.rule, source: 'llm' };
+  }
+  if (data.lookedUpLog && ctx.lastEvent) {
+    return { text, card: evidenceCard(ctx.lastEvent, ctx), chips: CHIPS.why, source: 'llm' };
+  }
+  return { text: text || '잘 이해하지 못했어요. 다시 말씀해 주세요.', chips: data.lookedUpLog ? CHIPS.why : DEFAULT_CHIPS, source: 'llm' };
+}
+
+// 서버(LLM)에 묻기. 실패하면 예외를 던지고, 호출한 쪽이 모의 엔진으로 대신한다.
+export async function remoteReply(raw, ctx, messages) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT);
+  try {
+    const res = await fetch(`${API_BASE}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: raw, history: toHistory(messages), context: toContext(ctx) }),
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`서버 응답 ${res.status}`);
+    const data = await res.json(); // 개발 서버가 HTML을 주면 여기서 실패 → 모의 엔진
+    if (typeof data?.text !== 'string') throw new Error('응답 형식이 달라요');
+    return fromServer(data, raw, ctx);
+  } finally {
+    clearTimeout(timer);
+  }
 }

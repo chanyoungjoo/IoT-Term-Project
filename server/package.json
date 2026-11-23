@@ -1,0 +1,17 @@
+{
+  "name": "airclass-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AirClass API 서버 (AirChat: Claude Haiku 연결)",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --env-file=.env --watch src/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.12.0"
+  },
+  "engines": {
+    "node": ">=20.6"
+  }
+}

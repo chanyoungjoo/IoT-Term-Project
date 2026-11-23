@@ -344,6 +344,23 @@ sudo tailscale funnel --bg 80     # https://<라파이름>.<tailnet>.ts.net 공�
 > [!WARNING]
 > Funnel 주소는 **링크를 아는 누구나** 접속할 수 있어요. 실제 센서·제어 API를 붙이기 전에 로그인을 추가해야 해요.
 
+### 🤖 AirChat 서버 (Claude Haiku)
+
+앱의 AirChat 탭은 `/api/chat`(`server/`, `api` 컨테이너)을 거쳐 Claude Haiku에 물어봐요. **API 키는 라즈베리파이의 `server/.env`에만** 두고 깃에는 올리지 않아요.
+
+```bash
+# 라즈베리파이에서 (처음 한 번)
+cp server/.env.example server/.env
+nano server/.env                  # ANTHROPIC_API_KEY=sk-ant-... 입력
+docker compose up -d --build
+curl -s localhost/api/health      # {"ok":true,...,"keySet":true} 이면 연결 완료
+docker compose logs -f api        # 대화마다 [chat] 로그와 토큰 사용량이 찍혀요
+```
+
+- 서버에 닿지 않거나 키가 없으면 앱이 **기본 응답 모드**(앱 안의 모의 엔진)로 자동 전환돼요. 화면 제목 아래 `Claude 연결됨 / 기본 응답 모드`로 표시돼요.
+- 비용 안전장치: nginx 분당 20회 제한, 서버 하루 호출 수 제한(`DAILY_LIMIT`, 기본 300), Claude Console 월 지출 한도.
+- 맥에서 개발할 때 라파 서버에 붙이려면 `app/.env`에 `EXPO_PUBLIC_API_URL=https://<라파이름>.<tailnet>.ts.net`을 넣고 `npx expo start`.
+
 ---
 
 ## 🎬 시연 방법

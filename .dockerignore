@@ -7,3 +7,5 @@
 docs
 graphify-out
 **/.DS_Store
+# 비밀값은 이미지에 넣지 않음 (compose가 실행할 때 env_file로 넘김)
+**/.env
