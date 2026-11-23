@@ -1,7 +1,8 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight, LogOut } from 'lucide-react-native';
+import { useScrollTop } from '../useScrollTop';
 import Constants from 'expo-constants';
 import { THRESHOLDS } from '../../../shared/rules';
 import { currentTeacher, getRoom, school } from '../api';
@@ -13,9 +14,10 @@ import { FadeIn, PressScale } from '../motion';
 const fmt = (n) => n.toLocaleString('ko-KR');
 
 export default function Settings() {
+  const scrollRef = useScrollTop(); // 탭에 들어올 때 항상 맨 위부터
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { roomId, setRoomId } = useAppState();
+  const { roomId, setRoomId, logout } = useAppState();
   const homeRoom = getRoom(currentTeacher.defaultRoomId);
 
   const limits = [
@@ -30,7 +32,7 @@ export default function Settings() {
   ];
 
   return (
-    <ScrollView bounces={false} overScrollMode="never" style={{ backgroundColor: C.bg }} contentContainerStyle={[s.page, { paddingTop: insets.top }]}>
+    <ScrollView ref={scrollRef} bounces={false} overScrollMode="never" style={{ backgroundColor: C.bg }} contentContainerStyle={[s.page, { paddingTop: insets.top }]}>
       <Header />
       <T w={800} size={26} style={{ marginTop: 8 }} accessibilityRole="header">설정</T>
 
@@ -89,6 +91,14 @@ export default function Settings() {
           </View>
         ))}
       </Card></FadeIn>
+
+      {/* 로그아웃: 로그인 화면으로 돌아감 */}
+      <FadeIn delay={330}>
+        <PressScale onPress={logout} scaleTo={0.98} style={s.logout} accessibilityRole="button" accessibilityLabel="로그아웃">
+          <LogOut size={18} color={C.badText} />
+          <T w={700} size={15} color={C.badText}>로그아웃</T>
+        </PressScale>
+      </FadeIn>
     </ScrollView>
   );
 }
@@ -100,5 +110,6 @@ const s = StyleSheet.create({
   section: { marginTop: 12, paddingBottom: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, minHeight: 48 },
   divider: { borderBottomWidth: 1, borderBottomColor: C.border },
+  logout: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 15, borderRadius: 20, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
   badge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 8, backgroundColor: C.primarySoft },
 });

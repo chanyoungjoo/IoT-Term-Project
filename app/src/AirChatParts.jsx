@@ -1,9 +1,11 @@
 // AirChat 화면 부품: 말풍선, 입력 중 표시, 스트리밍 텍스트, 카드, 내 자동화 시트
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
-import { Check, ChevronRight, Clock, ListChecks, ScrollText, ShieldCheck, Sparkles, X } from 'lucide-react-native';
-import { C, shadow } from './theme';
+import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import { Check, ChevronRight, Clock, ListChecks, ScrollText, ShieldCheck, X } from 'lucide-react-native';
+import { AirChatIcon } from './AirChatIcon';
+import { C, GRAD, shadow } from './theme';
+import { Gradient } from './Gradient';
 import { T, Switch } from './ui';
 import { FadeIn, PressScale, useReducedMotion } from './motion';
 import { ACTION_NAME, DEVICE_NAME, hhmm } from './airchat';
@@ -11,7 +13,7 @@ import { ACTION_NAME, DEVICE_NAME, hhmm } from './airchat';
 const PURPLE = '#6a4be0';
 const PURPLE_BG = '#f1ecff';
 
-// ── AI 아바타 (파랑→보라 그라데이션 + 반짝이) ─────────────
+// ── AI 아바타 (파랑→보라 그라데이션 + AirChat 아이콘: 바람 + 별) ─────
 export function AiAvatar({ size = 30, radius = 10 }) {
   const id = `airchat-g${size}`;
   return (
@@ -26,8 +28,28 @@ export function AiAvatar({ size = 30, radius = 10 }) {
         <Rect width={size} height={size} rx={radius} fill={`url(#${id})`} />
       </Svg>
       <View style={[StyleSheet.absoluteFill, s.center]}>
-        <Sparkles size={size * 0.5} color="#fff" fill="#fff" />
+        <AirChatIcon size={size * 0.68} color="#fff" strokeWidth={2.1} />
       </View>
+    </View>
+  );
+}
+
+// ── 대화 옆 AI 표시: 그라데이션 별 하나 ──────────────────
+// 화면 제목에서는 AirChat 아이콘(바람 + 별)을 보여 주고, 메시지마다 반복되는 자리는 별만 남겨 가볍게.
+const STAR = 'M12 2.5C12.6 7.6 16.4 11.4 21.5 12C16.4 12.6 12.6 16.4 12 21.5C11.4 16.4 7.6 12.6 2.5 12C7.6 11.4 11.4 7.6 12 2.5Z';
+export function AiStar({ size = 30 }) {
+  const id = `aistar${size}`;
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }} accessible={false}>
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        <Defs>
+          <LinearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor="#3a70fc" />
+            <Stop offset="1" stopColor="#7c5cff" />
+          </LinearGradient>
+        </Defs>
+        <Path d={STAR} fill={`url(#${id})`} transform="translate(1.2 1.2) scale(0.9)" />
+      </Svg>
     </View>
   );
 }
@@ -66,11 +88,11 @@ export function StreamText({ text, animate, onDone, onTick }) {
     }
     const timer = setInterval(() => {
       setCount((c) => {
-        const n = Math.min(total, c + 2);
+        const n = Math.min(total, c + 1);
         if (n >= total) clearInterval(timer);
         return n;
       });
-    }, 22);
+    }, 26); // 초당 약 38자: 읽히는 속도로 흘러나오게
     return () => clearInterval(timer);
   }, [animate, reduced, total]);
 
@@ -93,11 +115,11 @@ export function TypingBubble() {
   useEffect(() => {
     const bounce = (v, delay) => Animated.loop(Animated.sequence([
       Animated.delay(delay),
-      Animated.timing(v, { toValue: 1, duration: 280, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(v, { toValue: 0, duration: 280, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-      Animated.delay(360 - delay),
+      Animated.timing(v, { toValue: 1, duration: 340, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(v, { toValue: 0, duration: 340, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.delay(420 - delay),
     ]));
-    const loops = [bounce(a, 0), bounce(b, 120), bounce(c, 240)];
+    const loops = [bounce(a, 0), bounce(b, 150), bounce(c, 300)];
     loops.forEach((l) => l.start());
     return () => loops.forEach((l) => l.stop());
   }, [a, b, c]);
@@ -108,7 +130,7 @@ export function TypingBubble() {
   return (
     <FadeIn from={8} duration={250}>
       <View style={s.aiRow} accessible accessibilityLabel="AirChat이 답을 쓰는 중">
-        <AiAvatar />
+        <AiStar />
         <View style={s.typing}>
           {[a, b, c].map((v, i) => <Animated.View key={i} style={[s.dot, dot(v)]} />)}
         </View>
@@ -121,7 +143,10 @@ export function TypingBubble() {
 export function UserBubble({ text }) {
   return (
     <FadeIn from={12} scaleFrom={0.96} duration={280} style={{ alignSelf: 'flex-end', maxWidth: '80%' }}>
-      <View style={s.me}><T size={15} color="#fff" style={{ lineHeight: 22 }}>{text}</T></View>
+      <View style={s.me}>
+        <Gradient colors={GRAD.brand} />
+        <T size={15} color="#fff" style={{ lineHeight: 22 }}>{text}</T>
+      </View>
     </FadeIn>
   );
 }
@@ -150,7 +175,7 @@ export function AiMessage({ m, schedule, onStreamed, onAction, onTick }) {
   return (
     <FadeIn from={8} duration={300}>
       <View style={s.aiRow}>
-        <AiAvatar />
+        <AiStar />
         <View style={s.aiBody}>
           <StreamText
             text={m.text} animate={!!m.fresh} onTick={onTick}
@@ -204,6 +229,7 @@ function Row({ k, v, color }) {
 function Btn({ label, primary, onPress }) {
   return (
     <PressScale onPress={onPress} style={[s.btn, primary && s.btnPri]} accessibilityRole="button">
+      {primary && <Gradient colors={GRAD.brand} dir="horizontal" />}
       <T w={800} size={15} color={primary ? '#fff' : C.text}>{label}</T>
     </PressScale>
   );
@@ -461,7 +487,7 @@ const s = StyleSheet.create({
   aiBody: { flex: 1, minWidth: 0, gap: 10, paddingTop: 4 },
   typing: { flexDirection: 'row', gap: 5, alignItems: 'center', backgroundColor: C.surface, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 13, borderWidth: 1, borderColor: C.border },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: C.primary },
-  me: { backgroundColor: C.primaryDeep, borderRadius: 20, borderBottomRightRadius: 6, paddingHorizontal: 15, paddingVertical: 11 },
+  me: { overflow: 'hidden', borderRadius: 20, borderBottomRightRadius: 6, paddingHorizontal: 15, paddingVertical: 11 },
   event: { flexDirection: 'row', gap: 10, alignItems: 'center', borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11 },
   icon: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   card: { backgroundColor: C.surface, borderRadius: 18, borderWidth: 1, borderColor: C.border, padding: 14, gap: 10, ...shadow },
@@ -469,7 +495,7 @@ const s = StyleSheet.create({
   kv: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, paddingVertical: 7, borderTopWidth: 1, borderTopColor: '#eef1f7' },
   btns: { flexDirection: 'row', gap: 8, marginTop: 2 },
   btn: { flex: 1, minHeight: 46, borderRadius: 12, borderWidth: 1, borderColor: '#d5ddf0', backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' },
-  btnPri: { borderWidth: 0, backgroundColor: C.primaryDeep },
+  btnPri: { borderWidth: 0, overflow: 'hidden' },
   link: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.primarySoft, borderRadius: 12, paddingHorizontal: 14, minHeight: 46 },
   note: { flexDirection: 'row', gap: 6, alignItems: 'flex-start' },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -478,7 +504,8 @@ const s = StyleSheet.create({
   tl: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   tlDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20, 28, 45, 0.35)' },
+  // RN 0.88에는 StyleSheet.absoluteFillObject가 없어서 위치를 직접 적음
+  backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(20, 28, 45, 0.35)' },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '86%', backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 16, paddingTop: 8 },
   grab: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: '#cfd6e4', marginBottom: 8 },
   sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, paddingBottom: 12 },
