@@ -1,16 +1,43 @@
-# React + Vite
+# 🖥️ AirClass 관리자 웹
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+학교 행정실에서 **전체 교실의 공기질과 장치를 한 화면에서 관리**하는 웹이에요.
 
-Currently, two official plugins are available:
+## 화면
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| 주소 | 화면 | 내용 |
+|---|---|---|
+| `/` | 📊 대시보드 | 층별 교실 상태 맵, 오늘 실내·실외 PM2.5 추이, 선택 교실 상세 · 원격 제어 |
+| `/monitoring` | 🔍 교실별 모니터링 | 교실 표 비교, 층·상태 필터, 정렬 |
+| `/monitoring/:id` | 🏷️ 교실 상세 | 24시간 CO₂·PM2.5 추이, 제어 이력 |
+| `/devices` | 🎛️ 장치 제어 | 공기청정기 · 창문 제어, 일괄 제어, 자동 제어 규칙 |
+| `/alerts` | 🔔 알림 이력 | 알림 목록 · 처리 타임라인, 재전송 · 처리 완료, CSV 내보내기 |
+| `/settings` | ⚙️ 설정 | 기준값, 알림, 교실·담임, 실외 데이터, 계정 |
+| `/login` · `/signup` · `/find` | 🔐 계정 | 로그인, 회원가입, 아이디/비밀번호 찾기 |
 
-## React Compiler
+로그인하지 않으면 모든 화면이 로그인 페이지로 이동해요.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 실행
 
-## Expanding the Oxlint configuration
+```bash
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # → dist/
+npm test         # 시나리오별 자동 제어 결과 확인
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## 구조
+
+```
+src/
+├── api.js       # 데이터 접근 창구 (지금은 shared/ 더미 데이터 → 나중에 백엔드)
+├── auth/        # 로그인 · 회원가입 · 계정 찾기 (AuthContext로 로그인 상태 관리)
+├── pages/       # 화면별 컴포넌트
+├── Layout.jsx   # 사이드바 + 상단바
+└── ui.jsx       # 공용 컴포넌트
+```
+
+- 상태 판정과 창문 추천은 `../shared/rules.js`를 앱과 함께 써요.
+- 스택: React 19 · Vite · react-router · recharts · lucide-react
+
+> [!WARNING]
+> 시연용 데모 계정(`admin` / `1234`)과 인증 코드(`123456`)가 들어 있어요. 실제 서버에 연결하기 전에 지워야 해요.
