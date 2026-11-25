@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceArea, ReferenceLine } from 'recharts'
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { judgeRoom, decide, summarize, THRESHOLDS } from '@shared/rules.js'
-import { school, FLOORS } from '../api.js'
+import { school, FLOORS, historyFor } from '../api.js'
 import { Card, StatusBadge, Switch, Segmented, Stat, Meter } from '../ui.jsx'
 import { COLORS, REDUCED, fmt, stamp } from '../format.js'
 
@@ -25,6 +25,7 @@ export default function Dashboard() {
   const [selectedId, setSelectedId] = useState('2-2')
   const [sent, setSent] = useState({})
   const sum = summarize(rooms, purifiers)
+  sum.avgPm25 = Math.round(rooms.reduce((a, r) => a + r.sensor.pm25, 0) / rooms.length)
   const floorRooms = rooms.filter((r) => r.floor === floor)
   const tile = (r) => (
     <RoomTile key={r.id} room={r} purifier={purifiers.find((p) => p.roomId === r.id)}
@@ -36,7 +37,7 @@ export default function Dashboard() {
       <div className="page-head">
         <div>
           <h1 className="page-title">전체 교실 공기질 현황</h1>
-          <p className="page-sub">{stamp(school.updatedAt)} 기준, 1분마다 자동 갱신</p>
+          <p className="page-sub">{stamp(school.updatedAt)} 기준</p>
         </div>
         <div className="head-actions">
           <label className="select-label">
@@ -56,10 +57,10 @@ export default function Dashboard() {
           </span>
         } />
         <Stat
-          label="실외 PM2.5 지금" value={outPm.pm25 ?? '-'} unit="㎍/㎥" tone={outState === 'bad' ? 'bad' : undefined}
+          label="실외 PM2.5" value={outPm.pm25 ?? '-'} unit="㎍/㎥" tone={outState === 'bad' ? 'bad' : undefined}
           sub={<b className={`txt-${outState === 'bad' ? 'bad' : 'ok'}`}>{outState === 'bad' ? '나쁨' : outState === 'good' ? '보통' : '알 수 없음'}{outPm.source === 'api' && ' · 공공 API 값'}</b>}
         />
-        <Stat label={<>2시간 뒤 실외 예측 <span className="tag-future">향후 확장</span></>} value={outdoor.forecast[1]} unit="㎍/㎥" sub="더미 예측값이에요" />
+        <Stat label="평균 실내 PM2.5" value={sum.avgPm25} unit="㎍/㎥" tone={sum.avgPm25 >= THRESHOLDS.indoorPm25Bad ? 'bad' : undefined} sub={`기준 ${THRESHOLDS.indoorPm25Bad}㎍/㎥ 미만`} />
         <Stat label="평균 CO₂" value={fmt(sum.avgCo2)} unit="ppm" sub={`기준 ${fmt(THRESHOLDS.co2High)}ppm 이하`} />
         <Stat label="공기청정기 가동" value={sum.purifiersOn} unit={` / ${purifiers.length}대`} sub={`자동 제어 ${sum.purifiersAuto}대 적용 중`} />
       </div>
@@ -74,7 +75,7 @@ export default function Dashboard() {
               {floorRooms.map((r) => tile(r))}
             </div>
           </Card>
-          <OutdoorChart outdoor={outdoor} />
+          <PmTrendChart rooms={rooms} outdoor={outdoor} outNow={outPm.pm25} />
         </div>
 
         <div className="col">
@@ -178,7 +179,7 @@ function RoomPanel({ room, purifier, outState, outPm, sent, onAuto, onPower, onS
         <PanelMetric label="습도" value={s.humidity} unit="%" lv={lv.hum} ratio={s.humidity / 100} />
       </div>
       <div className="setting-row">
-        <div><strong>자동 제어</strong><span>규칙에 따라 장치를 켜고 꺼요</span></div>
+        <div><strong>자동 제어</strong></div>
         <Switch label="자동 제어" checked={purifier.mode === 'auto'} disabled={!purifier.online} onChange={(v) => onAuto(purifier, v)} />
       </div>
       <div className="setting-row">
@@ -202,33 +203,35 @@ function RoomPanel({ room, purifier, outState, outPm, sent, onAuto, onPower, onS
   )
 }
 
-function OutdoorChart({ outdoor }) {
-  const past = [...outdoor.history, outdoor.now]
-  const data = [
-    ...past.map((v, i) => ({ x: i === 5 ? '지금' : `-${5 - i}h`, measured: v, forecast: i === 5 ? v : null })),
-    ...outdoor.forecast.map((v, i) => ({ x: `+${i + 1}h`, forecast: v })),
-  ]
-  const top = Math.ceil(Math.max(...outdoor.forecast, ...past, THRESHOLDS.outdoorPm25Bad) / 10) * 10 + 10
+// 오늘(어제 10시 ~ 지금) 학교 평균 실내 PM2.5와 실외 PM2.5. 앱의 '기록' 탭과 같은 시간축.
+const HOURS = Array.from({ length: 24 }, (_, i) => (i === 23 ? '지금' : `${(10 + i) % 24}시`))
+// 3시간 간격 + 마지막 '지금'
+const TICKS = HOURS.filter((_, i) => i % 3 === 0 || i === HOURS.length - 1)
+
+function PmTrendChart({ rooms, outdoor, outNow }) {
+  const data = HOURS.map((x, i) => {
+    const last = i === HOURS.length - 1
+    // 마지막 점은 현재 센서값으로 맞춰 시나리오 버튼을 누르면 같이 바뀌게 한다
+    const indoor = Math.round(rooms.reduce((a, r) => a + (last ? r.sensor.pm25 : historyFor(r).pm25[i]), 0) / rooms.length)
+    return { x, indoor, outdoor: last && outNow != null ? outNow : outdoor.history24h[i] }
+  })
+  const top = Math.ceil(Math.max(...data.flatMap((d) => [d.indoor, d.outdoor])) / 10) * 10 + 10
+  const now = data[data.length - 1]
   return (
-    <Card title={<>실외 미세먼지 예측 <span className="tag-future">향후 확장</span></>} extra={
+    <Card title="오늘 실내·실외 PM2.5" extra={
       <span className="legend">
-        <span><i className="lg-line" />측정값</span>
-        <span><i className="lg-dash" />예측값(더미)</span>
-        <span><i className="lg-zone" />나쁨 구간 ({THRESHOLDS.outdoorPm25Bad} 이상)</span>
+        <span><i className="lg-line" />실내 평균</span>
+        <span><i className="lg-line" style={{ borderColor: COLORS.warn }} />실외</span>
       </span>
     }>
-      <div className="chart" role="img" aria-label={`실외 PM2.5 지금 ${outdoor.now}, 5시간 예측 최대 ${Math.max(...outdoor.forecast)}`}>
+      <div className="chart" role="img" aria-label={`지금 실내 평균 PM2.5 ${now.indoor}, 실외 ${now.outdoor}`}>
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={data} margin={{ top: 16, right: 16, bottom: 0, left: -16 }}>
             <CartesianGrid vertical={false} stroke={COLORS.border} />
-            <ReferenceArea y1={THRESHOLDS.outdoorPm25Bad} y2={top} fill={COLORS.bad} fillOpacity={0.06} />
-            <ReferenceLine y={THRESHOLDS.outdoorPm25Bad} stroke={COLORS.bad} strokeDasharray="5 4"
-              label={{ value: `나쁨 기준 ${THRESHOLDS.outdoorPm25Bad}`, position: 'insideTopRight', fill: COLORS.bad, fontSize: 12 }} />
-            <ReferenceLine x="지금" stroke={COLORS.sub} strokeDasharray="2 3" />
-            <XAxis dataKey="x" tickLine={false} axisLine={false} tick={{ fill: COLORS.sub, fontSize: 12 }} />
+            <XAxis dataKey="x" ticks={TICKS} interval={0} tickLine={false} axisLine={false} tick={{ fill: COLORS.sub, fontSize: 12 }} />
             <YAxis domain={[0, top]} tickLine={false} axisLine={false} tick={{ fill: COLORS.sub, fontSize: 12 }} />
-            <Line dataKey="measured" stroke={COLORS.primary} strokeWidth={3} dot={false} isAnimationActive={!REDUCED} animationDuration={900} />
-            <Line dataKey="forecast" stroke={COLORS.warn} strokeWidth={3} strokeDasharray="6 5" dot={false} isAnimationActive={!REDUCED} animationBegin={500} animationDuration={900} />
+            <Line dataKey="outdoor" name="실외" stroke={COLORS.warn} strokeWidth={3} dot={false} isAnimationActive={!REDUCED} animationDuration={900} />
+            <Line dataKey="indoor" name="실내 평균" stroke={COLORS.primary} strokeWidth={3} dot={false} isAnimationActive={!REDUCED} animationBegin={300} animationDuration={900} />
           </LineChart>
         </ResponsiveContainer>
       </div>
