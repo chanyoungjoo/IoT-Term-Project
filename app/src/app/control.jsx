@@ -1,14 +1,16 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Fan } from 'lucide-react-native';
+import { PurifierIcon } from '../PurifierIcon';
 import { getPurifier, getRoomView, SPEEDS } from '../api';
 import { useAppState } from '../store';
 import { C } from '../theme';
+import { useScrollTop } from '../useScrollTop';
 import { T, Card, Header, Segmented, Switch } from '../ui';
 import { FadeIn } from '../motion';
 import WindowCard from '../WindowCard';
 
 export default function Control() {
+  const scrollRef = useScrollTop(); // 탭에 들어올 때 항상 맨 위부터
   const insets = useSafeAreaInsets();
   const { roomId, demo, edits, setEdits, windowEdits, setWindowOpen } = useAppState();
   const v = getRoomView(roomId, demo, windowEdits[roomId]);
@@ -20,7 +22,7 @@ export default function Control() {
     : v.isDemo ? null : v.window.lastAction;
 
   return (
-    <ScrollView bounces={false} overScrollMode="never" style={{ backgroundColor: C.bg }} contentContainerStyle={[s.page, { paddingTop: insets.top }]}>
+    <ScrollView ref={scrollRef} bounces={false} overScrollMode="never" style={{ backgroundColor: C.bg }} contentContainerStyle={[s.page, { paddingTop: insets.top }]}>
       <Header />
       <T size={14} color={C.textSub} style={{ marginTop: 8 }}>{v.room.name}</T>
       <T w={800} size={26} accessibilityRole="header">장치 제어</T>
@@ -37,7 +39,7 @@ export default function Control() {
       <FadeIn delay={120}><Card style={{ marginTop: 12, gap: 14 }}>
         <View style={s.rowBetween}>
           <View style={[s.iconBox, { backgroundColor: p.power ? C.primarySoft : C.bg }]}>
-            <Fan size={24} color={p.power ? C.primaryDeep : C.textSub} />
+            <PurifierIcon size={24} color={p.power ? C.primaryDeep : C.textSub} />
           </View>
           <View style={{ flex: 1 }}>
             <T w={700} size={18}>공기청정기</T>

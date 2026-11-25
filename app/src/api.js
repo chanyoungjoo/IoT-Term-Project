@@ -5,6 +5,7 @@ import { judgeRoom, decide, pickOutdoorPm, outdoorStatus, recommendWindow } from
 export const { school, currentTeacher, outdoor, SPEEDS, appHomeStates, controlLog } = d;
 
 export const getRoom = (id) => d.rooms.find((r) => r.id === id);
+export const listRooms = () => d.rooms; // 회원가입에서 담당 교실 고르기
 export const getPurifier = (roomId) => d.purifiers.find((p) => p.roomId === roomId);
 export const getWindow = (roomId) => d.windows.find((w) => w.roomId === roomId);
 

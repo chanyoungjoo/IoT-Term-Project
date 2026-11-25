@@ -2,7 +2,7 @@
 import * as d from '../../shared/dummyData.js'
 import { applyScenario, pickOutdoorPm, outdoorStatus, decide, recommendWindow } from '../../shared/rules.js'
 
-export const { school, currentAdmin, FLOORS, SPEEDS, scenarios, controlLog, RULES, historyFor } = d
+export const { school, currentAdmin, FLOORS, SPEEDS, scenarios, controlLog, RULES, historyFor, alertHistory } = d
 
 // 시나리오 + 화면에서 바꾼 장치 설정(edits)을 반영한 현재 상태.
 // edits는 장치 id로 묶는다 (공기청정기 AP-…, 창문 WD-…).

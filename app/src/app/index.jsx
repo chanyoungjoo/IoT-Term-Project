@@ -1,13 +1,18 @@
+import { useEffect } from 'react';
 import { Animated, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronDown, Cloud, Sparkles, Thermometer, Droplet } from 'lucide-react-native';
+import { ChevronDown, Cloud, Thermometer, Droplet } from 'lucide-react-native';
+import { MaskIcon } from '../MaskIcon';
 import { THRESHOLDS } from '../../../shared/rules';
 import { currentTeacher, getRoomView, school } from '../api';
 import { useAppState } from '../store';
-import { C, HERO, LEVEL } from '../theme';
+import { C, GRAD, HERO, LEVEL } from '../theme';
+import { useScrollTop } from '../useScrollTop';
+import { Gradient } from '../Gradient';
 import { T, Card, Header, MetricCard, Segmented } from '../ui';
 import { FadeIn, PressScale, useAnimatedColor, useAnimatedTo } from '../motion';
 import WindowArt from '../WindowArt';
+import { CountText, SwapText } from '../textMotion';
 import WindowCard from '../WindowCard';
 
 const fmt = (n) => n.toLocaleString('ko-KR');
@@ -16,7 +21,10 @@ const floorText = (room) => (room.floor === 's' ? '특별실' : `${school.buildi
 
 export default function Home() {
   const insets = useSafeAreaInsets();
-  const { roomId, setRoomId, demo, setDemo, windowEdits, setWindowOpen } = useAppState();
+  const { roomId, setRoomId, demo, setDemo, windowEdits, setWindowOpen, user } = useAppState();
+  // 탭에 들어올 때 항상 맨 위부터. 로그인·로그아웃 때도 맨 위로 (홈은 로그인 화면 뒤에 남아 있어서)
+  const scrollRef = useScrollTop();
+  useEffect(() => { scrollRef.current?.scrollTo({ y: 0, animated: false }); }, [user]);
   const v = getRoomView(roomId, demo, windowEdits[roomId]);
   const { sensor, decision, outPm, outState } = v;
   const hero = HERO[decision.rule];
@@ -30,8 +38,11 @@ export default function Home() {
   const heroBg = useAnimatedColor(hero.bg);
 
   return (
-    <ScrollView bounces={false} overScrollMode="never" style={{ backgroundColor: C.bg }} contentContainerStyle={{ paddingBottom: 120 }}>
+    <ScrollView ref={scrollRef} bounces={false} overScrollMode="never" style={{ backgroundColor: C.bg }} contentContainerStyle={{ paddingBottom: 120 }}>
       <Animated.View style={[s.hero, { backgroundColor: heroBg, paddingTop: insets.top }]}>
+        <FadeIn key={`g${decision.rule}`} from={0} duration={500} style={StyleSheet.absoluteFill}>
+          <Gradient colors={GRAD.hero[decision.rule]} glow={0.22} />
+        </FadeIn>
         <Header
           tint={hero.fg} bubble={hero.chip}
           markBg={onHero ? 'rgba(255,255,255,0.22)' : hero.fg} markFg={onHero ? '#fff' : hero.bg}
@@ -46,31 +57,24 @@ export default function Home() {
           <ChevronDown size={18} color={hero.fg} />
         </PressScale>
 
+        {/* 숫자 카드(같은 폭) · 창문 그림 · 숫자 카드. 카드 폭이 같아서 숫자 길이가 달라져도 창문은 항상 가운데 */}
         <View style={s.compare}>
-          <View>
-            <T w={600} size={13} color={hero.sub}>교실 안 CO₂</T>
-            <FadeIn key={sensor.co2} from={8}><T w={800} size={34} color={hero.fg}>{fmt(sensor.co2)}</T></FadeIn>
-            <View style={[s.miniChip, { backgroundColor: hero.chip }]}>
-              <T w={700} size={12} color={hero.fg}>{co2Lv === 'warn' ? '환기 필요' : '양호'}</T>
-            </View>
-          </View>
+          <HeroMetric hero={hero} label="실내 CO₂" value={fmt(sensor.co2)} unit="ppm" bad={co2Lv === 'warn'}
+            status={co2Lv === 'warn' ? '환기 필요' : '양호'} />
           <WindowArt rule={decision.rule} color={hero.fg} bg={hero.bg} />
-          <View style={{ alignItems: 'flex-end' }}>
-            <T w={600} size={13} color={hero.sub}>바깥 PM2.5</T>
-            <FadeIn key={outPm} from={8}><T w={800} size={34} color={hero.fg}>{outPm ?? '-'}</T></FadeIn>
-            <View style={[s.miniChip, { backgroundColor: hero.chip, alignSelf: 'flex-end' }]}>
-              <T w={700} size={12} color={hero.fg}>{outState === 'bad' ? '나쁨' : outState === 'good' ? '보통' : '알 수 없음'}</T>
-            </View>
-          </View>
+          <HeroMetric hero={hero} label="실외 PM2.5" value={outPm ?? '-'} unit="㎍/㎥" bad={outState === 'bad'}
+            status={outState === 'bad' ? '나쁨' : outState === 'good' ? '보통' : '알 수 없음'} />
         </View>
 
-        <FadeIn key={decision.rule} delay={80} style={{ alignItems: 'center', marginTop: 20 }}>
-          <View style={[s.miniChip, { backgroundColor: hero.chip, paddingHorizontal: 12 }]}>
-            <T w={700} size={13} color={hero.fg}>{hero.label}</T>
-          </View>
-          <T w={800} size={26} color={hero.fg} style={s.center} lineBreakStrategyIOS="hangul-word">{decision.title}</T>
-          <T size={15} color={hero.sub} style={[s.center, { lineHeight: 22 }]} lineBreakStrategyIOS="hangul-word">{decision.message}</T>
-        </FadeIn>
+        {/* 제목·설명 (가운데 정렬). 상태가 바뀌면 이전 문구는 위로, 새 문구는 아래에서 올라옴 (textMotion.jsx) */}
+        <View style={{ marginTop: 20 }}>
+          <SwapText w={800} size={26} color={hero.fg} style={[s.center, { lineHeight: 34 }]} lineBreakStrategyIOS="hangul-word" accessibilityRole="header">
+            {decision.title}
+          </SwapText>
+          <SwapText size={15} color={hero.sub} style={[s.center, { lineHeight: 22 }]} containerStyle={{ marginTop: 6 }} lineBreakStrategyIOS="hangul-word">
+            {decision.message}
+          </SwapText>
+        </View>
       </Animated.View>
 
       <View style={s.body}>
@@ -87,7 +91,7 @@ export default function Home() {
             <MetricCard icon={Cloud} label="CO₂" value={fmt(sensor.co2)} unit="ppm" level={co2Lv}
               levelText={co2Lv === 'warn' ? '환기 필요' : '양호'} ratio={sensor.co2 / (THRESHOLDS.co2High * 1.6)}
               mark={1 / 1.6} caption={`기준 ${fmt(THRESHOLDS.co2High)}ppm`} />
-            <MetricCard icon={Sparkles} label="PM2.5" value={sensor.pm25} unit="㎍/㎥" level={pmLv}
+            <MetricCard icon={MaskIcon} label="PM2.5" value={sensor.pm25} unit="㎍/㎥" level={pmLv}
               levelText={pmLv === 'bad' ? '나쁨' : '양호'} ratio={sensor.pm25 / (THRESHOLDS.indoorPm25Bad * 1.6)}
               mark={1 / 1.6} caption={`기준 ${THRESHOLDS.indoorPm25Bad}㎍/㎥`} />
           </View>
@@ -141,12 +145,36 @@ function CompareBar({ label, value, level }) {
   );
 }
 
+// 히어로 숫자 카드 (반투명, 가운데 정렬): 라벨 / 숫자 / 상태 칩
+function HeroMetric({ hero, label, value, unit, bad, status }) {
+  return (
+    <View style={[s.metricCard, { backgroundColor: hero.glass }]} accessible accessibilityLabel={`${label} ${value}, ${status}`}>
+      <T w={600} size={13} color={hero.sub} numberOfLines={1}>{label}</T>
+      {/* 숫자 + 단위를 한 줄에 (단위는 항상 표시) */}
+      <View style={s.valueRow}>
+        <CountText w={800} size={28} color={hero.fg} numberOfLines={1} value={value} />
+        <T w={600} size={12} color={hero.sub} style={s.unit}>{unit}</T>
+      </View>
+      {/* 기준을 넘은 숫자에만 반전색 칩 */}
+      {bad ? (
+        <View style={[s.miniChip, { backgroundColor: hero.fg, alignSelf: 'center', marginTop: 2 }]}>
+          <T w={700} size={12} color={hero.bg} numberOfLines={1}>{status}</T>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   hero: { paddingHorizontal: 20, paddingBottom: 52 },
   roomPick: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999, marginTop: 8 },
-  compare: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24 },
+  compare: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 22 },
+  // 반투명 숫자 카드: 양쪽 같은 폭(flex: 1), 안의 내용은 가운데 정렬
+  valueRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center' },
+  unit: { marginLeft: 3 },
+  metricCard: { flex: 1, alignSelf: 'stretch', justifyContent: 'center', alignItems: 'center', gap: 2, borderRadius: 16, paddingHorizontal: 8, paddingVertical: 11 },
+  center: { textAlign: 'center' },
   miniChip: { alignSelf: 'flex-start', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, marginTop: 4 },
-  center: { textAlign: 'center', marginTop: 8 },
   // 히어로 위로 올라오는 시트: 위쪽 모서리만 둥글게, 카드는 이 시트 안에 놓인다
   body: { paddingHorizontal: 16, paddingTop: 20, marginTop: -28, gap: 12, backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
   row: { flexDirection: 'row', gap: 12 },

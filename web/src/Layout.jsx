@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Wind, LayoutGrid, House, Sun, ChartLine, Bell, SlidersHorizontal } from 'lucide-react'
-import { currentAdmin, controlLog, scenarios, getSnapshot } from './api.js'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Wind, LayoutGrid, House, Sun, Bell, SlidersHorizontal, LogOut } from 'lucide-react'
+import { controlLog, scenarios, getSnapshot } from './api.js'
+import { useAuth } from './auth/useAuth.js'
 
 const NAV = [
   { to: '/', label: '대시보드', icon: LayoutGrid },
   { to: '/monitoring', label: '교실별 모니터링', icon: House },
   { to: '/devices', label: '장치 제어', icon: Sun },
-  { to: '/forecast', label: '미세먼지 예측', icon: ChartLine },
   { to: '/alerts', label: '알림 이력', icon: Bell },
   { to: '/settings', label: '설정', icon: SlidersHorizontal },
 ]
@@ -17,6 +17,9 @@ const hhmm = () => new Date().toTimeString().slice(0, 5)
 // 시나리오·장치 설정·제어 기록을 여기서 들고 있어 모든 화면이 같은 상태를 본다.
 export default function Layout() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const { user, signOut } = useAuth()
+  const logout = () => { signOut(); navigate('/login', { replace: true }) }
   const [scenario, setScenario] = useState('base')
   const [edits, setEdits] = useState({})
   const [log, setLog] = useState(controlLog)
@@ -30,8 +33,9 @@ export default function Layout() {
     editPurifiers: (ids, patch) =>
       setEdits((e) => ({ ...e, ...Object.fromEntries(ids.map((id) => [id, { ...e[id], ...patch }])) })),
     resetEdits: () => setEdits({}),
+    logout,
     addLog: (entry) =>
-      setLog((l) => [{ id: `u${l.length}`, time: hhmm(), by: 'manual', who: `${currentAdmin.name} ${currentAdmin.role}`, ...entry }, ...l]),
+      setLog((l) => [{ id: `u${l.length}`, time: hhmm(), by: 'manual', who: `${user.name} ${user.role}`, ...entry }, ...l]),
   }
 
   return (
@@ -52,7 +56,6 @@ export default function Layout() {
         {pathname === '/' && (
           <div className="scenario">
             <strong>시연용 시나리오</strong>
-            <p>버튼을 누르면 교실 카드, 요약 수치, 알림이 바뀌어요.</p>
             {['pm', 'co2', 'outdoorBad'].map((k) => (
               <button key={k} type="button" className="btn" aria-pressed={scenario === k} onClick={() => setScenario(k)}>
                 {scenarios[k].label}
@@ -62,11 +65,12 @@ export default function Layout() {
           </div>
         )}
         <div className="profile">
-          <span className="avatar" aria-hidden>{currentAdmin.name[0]}</span>
+          <span className="avatar" aria-hidden>{user.name[0]}</span>
           <div>
-            <strong>{currentAdmin.name} {currentAdmin.role}</strong>
-            <span>{currentAdmin.org}</span>
+            <strong>{user.name} {user.role}</strong>
+            <span>{user.school} 행정실</span>
           </div>
+          <button type="button" className="icon-btn" aria-label="로그아웃" title="로그아웃" onClick={logout}><LogOut size={18} aria-hidden /></button>
         </div>
       </aside>
       <main className="main">

@@ -328,3 +328,49 @@ th[aria-sort='ascending'] .th-sort, th[aria-sort='descending'] .th-sort { color:
 .stat.tone-ok .stat-value { color: var(--ok-text); }
 .table-devices { min-width: 1000px; }
 .table-devices td:first-child, .table-devices td:nth-child(3) { white-space: nowrap; }
+
+/* ── 알림 이력 ──────────────────────────────────────── */
+.badge.lv-info { background: var(--primary-soft); color: var(--primary-deep); }
+.ev-group + .ev-group { margin-top: 16px; }
+.ev-day { margin: 0 0 8px; font-size: 13px; color: var(--text-sub); }
+.ev-row { display: grid; grid-template-columns: 48px auto 1fr auto; gap: 12px; align-items: center; width: 100%; margin-bottom: 8px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); font: inherit; font-size: 14px; color: var(--text); text-align: left; cursor: pointer; }
+.ev-row:hover { background: var(--bg); }
+.ev-row time { font-size: 13px; color: var(--text-sub); }
+.ev-row small { display: block; margin-top: 2px; font-size: 12px; color: var(--text-sub); }
+.ev-row.st-open { border-left: 4px solid var(--bad); }
+.ev-row[aria-pressed='true'] { outline: 3px solid var(--primary); outline-offset: -1px; }
+.ev-text { margin: 0 0 16px; font-size: 15px; }
+.ev-spark { margin-bottom: 16px; padding: 14px; border-radius: 12px; background: var(--bg); overflow: hidden; }
+.ev-spark small { display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-sub); }
+.ev-timeline { list-style: none; margin: 0 0 18px; padding: 0 0 0 14px; border-left: 2px solid var(--border); }
+.ev-timeline li { position: relative; display: grid; grid-template-columns: 52px 1fr; gap: 8px; padding: 6px 0; font-size: 14px; }
+.ev-timeline li::before { content: ''; position: absolute; left: -20px; top: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--primary); }
+.ev-timeline li.pending::before { background: var(--bad); }
+.ev-timeline time { font-size: 13px; color: var(--text-sub); }
+
+/* ── 설정 ──────────────────────────────────────────── */
+.set-split { display: grid; grid-template-columns: 220px minmax(0, 760px); gap: 24px; align-items: start; }
+.set-nav { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 4px; padding: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.set-nav button { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border: 0; border-radius: 10px; background: none; font: inherit; font-size: 15px; color: var(--text); text-align: left; cursor: pointer; }
+.set-nav button:hover { background: var(--bg); }
+.set-nav button[aria-pressed='true'] { background: var(--primary-soft); color: var(--primary-deep); font-weight: 600; }
+.num-field { display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.num-field:focus-within { border-color: var(--primary); }
+.num-field input { width: 64px; padding: 9px 0; border: 0; outline: 0; background: none; font: inherit; font-weight: 700; text-align: right; }
+.num-field em { font-style: normal; font-size: 13px; color: var(--text-sub); }
+.preview { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 16px; padding: 14px 16px; border-radius: 12px; background: var(--bg); font-size: 14px; }
+.dots-row { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.hint { margin: 12px 0 0; font-size: 13px; color: var(--text-sub); }
+@media (max-width: 1100px) {
+  .set-split { grid-template-columns: 1fr; }
+  .set-nav { position: static; flex-direction: row; flex-wrap: wrap; }
+}
+.profile > div { min-width: 0; }
+.icon-btn { display: grid; place-items: center; margin-left: auto; padding: 8px; border: 0; border-radius: 10px; background: none; color: var(--text-sub); }
+.icon-btn:hover { background: var(--bg); color: var(--text); }
+.text-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-sub); }
+.text-field input { width: 100%; max-width: 240px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font: inherit; font-size: 14px; color: var(--text); }
+.text-field input:focus { outline: 0; border-color: var(--primary); }
+.pw-form { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px; margin: 4px 0 8px; border-radius: 12px; background: var(--bg); }
+.pw-form .text-field input { max-width: none; }
+.pw-form-foot { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; }

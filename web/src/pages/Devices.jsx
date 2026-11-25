@@ -102,7 +102,7 @@ export default function Devices() {
             </div>
           </Card>
 
-          <Card title="교실 장치 목록" extra={<span className="muted">{targetLabel} {list.length}개 교실, 일괄 제어 대상과 같아요</span>}>
+          <Card title="교실 장치 목록" extra={<span className="muted">{targetLabel} {list.length}개 교실</span>}>
             <div className="table-wrap">
               <table className="table table-devices">
                 <thead>
@@ -157,17 +157,15 @@ export default function Devices() {
 
         <div className="col">
           <Card title="자동 제어 규칙">
-            <p className="muted">자동 모드인 장치에 적용돼요. 1분마다 수치를 확인해요.</p>
             <ul className="rule-list">
               {RULES.map((r) => (
-                <li key={r.id} className={r.future ? 'future' : ''}>
+                <li key={r.id}>
                   <span className="rule-no">{r.id}</span>
                   <div>
                     <strong>{r.title}</strong>
                     <span className="muted block">{r.desc}</span>
-                    {r.future && <span className="tag-future">향후 확장</span>}
                   </div>
-                  <Switch label={`규칙 ${r.id} ${r.title}`} checked={!r.future && rulesOn[r.id]} disabled={r.future}
+                  <Switch label={`규칙 ${r.id} ${r.title}`} checked={rulesOn[r.id]}
                     onChange={(v) => setRulesOn((s) => ({ ...s, [r.id]: v }))} />
                 </li>
               ))}

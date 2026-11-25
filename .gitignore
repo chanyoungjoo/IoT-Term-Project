@@ -2,3 +2,7 @@ node_modules
 dist
 .DS_Store
 .claude/settings.local.json
+
+# API 키 등 비밀값 (server/.env, app/.env)
+.env
+**/.env
