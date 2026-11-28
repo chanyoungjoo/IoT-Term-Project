@@ -1,7 +1,7 @@
 """4.1 EDA
 
 실행: python eda.py
-- 노트북의 plt.show() 대신 show('파일명')으로 outputs/eda/ 에 그래프를 저장
+- plt.show() 대신 show('파일명')으로 outputs/eda/ 에 그래프를 저장
 """
 import matplotlib
 
@@ -22,7 +22,7 @@ except ImportError:
 
 
 def show(name):
-    """노트북의 plt.show() 대신: outputs/eda/ 에 저장"""
+    """plt.show() 대신: outputs/eda/ 에 저장"""
     EDA_DIR.mkdir(parents=True, exist_ok=True)
     plt.savefig(EDA_DIR / name, dpi=120, bbox_inches='tight')
     plt.close('all')

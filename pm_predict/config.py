@@ -1,4 +1,4 @@
-"""공통 설정 (Air_AI_Test.ipynb 기준)"""
+"""공통 설정"""
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
