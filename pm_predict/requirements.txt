@@ -1,0 +1,7 @@
+pandas
+numpy
+xlrd                  # .xls 읽기
+scikit-learn
+matplotlib
+statsmodels           # ACF / PACF
+koreanize-matplotlib  # 그래프 한글 (선택)
