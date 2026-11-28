@@ -12,9 +12,9 @@ AirClass의 **사전대응**을 위한 실외 미세먼지(PM2.5) 예측 모듈�
 
 `iot_dataSet/air/연도/air_YYYY_MM.xls`, `iot_dataSet/weather/연도/weather_YYYY_MM.xls`에 두면 돼요. (원본 데이터는 깃에 올리지 않아요)
 
-## 파일 구성 (Air_AI_Test.ipynb 순서)
+## 파일 구성
 
-| 파일 | 노트북 섹션 |
+| 파일 | 내용 |
 |---|---|
 | `config.py` | 경로, H=3, BAD=36, MAX_GAP=3, FEATURES |
 | `data_loader.py` | 1. 데이터 불러오기 / 2. DataFrame화 (2.1 대기질, 2.2 기상) |
@@ -55,4 +55,4 @@ python linear_model.py    # 기준선·Linear Regression·Ridge 결과
 - **ACF는 천천히 감소, PACF는 lag 1 이후 급격히 0** → AR(1)에 가까운 구조. lag 1~3 + 6·24시간 이동평균 사용
 - 3월 최고(26.2), 9월 최저(12.0) / 오전 9시 최고, 오후 6시 최저 → 월·시각 sin/cos
 - 풍속이 약할수록 높고, 비가 1mm 이상 오면 3시간 동안 평균 1.5 감소
-- PM10·CO는 PM2.5와 상관이 높지만 **현재 PM2.5와 겹치는 정보가 대부분** → 최종 선택은 실험으로
+- PM10·CO·NO₂는 PM2.5와 상관이 높아 특징에 포함, O₃·SO₂는 상관이 약해 실험으로 판단
