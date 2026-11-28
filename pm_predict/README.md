@@ -49,6 +49,13 @@ AirClass의 **사전대응**을 위한 실외 미세먼지(PM2.5) 예측 모듈�
 
 - **계절성이 있다고 반드시 ARIMA를 쓸 필요는 없음.** 차분은 ARIMA의 전제 조건이고, 처리 방법은 모델마다 다름. 이 데이터는 계절 주기가 둘(하루·1년)이고 급변이 외부 요인에서 비선형으로 오며 분포가 치우쳐 있어(왜도 1.75) ARIMA에 불리함.
 - **ACF·PACF**: PACF가 lag 1(0.94) 이후 급격히 0이 되는 AR(1)형 구조임. 다만 장기 ACF가 AR(1) 기대보다 높아(24시간: 0.45 vs 0.23) 천천히 변하는 배경 수준이 있음 → lag 1~3 + 6·24시간 이동평균 사용.
+
+<p align="center">
+  <img src="images/acf.png" width="49%" alt="PM2.5 ACF">
+  <img src="images/pacf.png" width="49%" alt="PM2.5 PACF">
+</p>
+<p align="center"><sub>왼쪽: ACF (천천히 감소) · 오른쪽: PACF (lag 1 이후 급격히 0)</sub></p>
+
 - **목표값 차분**: 트리 모델은 학습 범위 밖 값을 예측하지 못해서, LightGBM은 "3시간 동안의 변화량"을 예측하고 현재값을 더해 복원하는 방식도 비교함. 평가는 복원한 값으로 함.
 - STL 분해와 ADF·KPSS 검정으로 계절성과 정상성을 추가 확인할 예정임.
 
@@ -84,6 +91,7 @@ AirClass의 **사전대응**을 위한 실외 미세먼지(PM2.5) 예측 모듈�
 | `data_loader.py` | 데이터 불러오기, DataFrame화 |
 | `preprocess.py` | 병합, 결측 처리, 풍향 변환, 중간 저장 |
 | `eda.py` | EDA 그래프 (`outputs/eda/`) |
+| `images/` | README에 쓰는 그림 (ACF, PACF) |
 | `features.py` | 특징 만들기 |
 | `split.py` | Train/Valid/Test 분할 |
 | `evaluate.py` | 평가 함수 |
